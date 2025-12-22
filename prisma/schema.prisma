@@ -1,4 +1,4 @@
-// This is your Prisma schema file,
+// This is the Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -6,15 +6,16 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 model Workflow {
   id        String   @id @default(cuid())
   name      String
-  nodes     String   // Storing React Flow nodes as JSON string
-  edges     String   // Storing React Flow edges as JSON string
+  nodes     String   @db.Text
+  edges     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
