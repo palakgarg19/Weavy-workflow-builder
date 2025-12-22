@@ -78,7 +78,19 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
       >
         <div className="flex items-center justify-between pl-[16px] pr-[16px] pt-[22px] pb-[7px] h-[12px] shrink-0 mb-[6px] overflow-visible">
             <div className="flex items-center h-[12px]">
-                <span className="text-[16px] font-semibold text-white leading-none">Image</span>
+                <input
+                    type="text"
+                    value={data.label ?? 'Image'}
+                    onChange={(e) => updateNodeData(id, { label: e.target.value })}
+                    onBlur={(e) => {
+                        if (!e.target.value.trim()) {
+                            updateNodeData(id, { label: 'Image' });
+                        }
+                    }}
+                    className="text-[16px] font-semibold text-white leading-none bg-transparent border-none outline-none focus:outline-none ring-0 px-0 cursor-text"
+                    style={{ width: 'auto', minWidth: '60px', maxWidth: '300px', color: 'white' }}
+                    onFocus={(e) => e.target.select()}
+                />
             </div>
             
             <button 

@@ -81,7 +81,19 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
       >
         <div className="flex items-center justify-between pl-[16px] pr-[16px] pt-[22px] pb-[7px] h-[12px] shrink-0 mb-[6px] overflow-visible">
             <div className="flex items-center h-[12px]">
-                <span className="text-[16px] font-semibold text-white leading-none">Any LLM</span>
+                <input
+                    type="text"
+                    value={data.label ?? 'Any LLM'}
+                    onChange={(e) => updateNodeData(id, { label: e.target.value })}
+                    onBlur={(e) => {
+                        if (!e.target.value.trim()) {
+                            updateNodeData(id, { label: 'Any LLM' });
+                        }
+                    }}
+                    className="text-[16px] font-semibold text-white leading-none bg-transparent border-none outline-none focus:outline-none ring-0 px-0 cursor-text"
+                    style={{ width: 'auto', minWidth: '60px', maxWidth: '300px', color: 'white' }}
+                    onFocus={(e) => e.target.select()}
+                />
             </div>
             
             <button 
@@ -258,7 +270,7 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
             className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !right-[-6px] z-50" 
         />
         {selected && (
-            <div className="absolute right-[-70px] top-[100px] -translate-y-1/2 flex items-center pl-1 animate-in fade-in duration-200 z-50">
+            <div className="absolute right-[-50px] top-[100px] -translate-y-1/2 flex items-center pl-1 animate-in fade-in duration-200 z-50">
                 <span className="text-[14px] font-[500] text-[rgb(241,160,250)] leading-normal" style={{ fontFamily: '"DM Mono", monospace' }}>Text</span>
             </div>
         )}
