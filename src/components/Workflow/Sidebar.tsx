@@ -3,7 +3,7 @@
 import { DragEvent, useState, useEffect, useRef } from 'react';
 import { 
   Search, History, Image as LucideImage, Sparkles, 
-  Download, Type, ChevronDown, Plus, Save, Upload
+  Download, Type, ChevronDown, Plus, Save, Upload, Check
 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
@@ -94,17 +94,64 @@ export default function Sidebar() {
   };
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedInputs, setSelectedInputs] = useState<string[]>([]);
+  const [selectedOutputs, setSelectedOutputs] = useState<string[]>([]);
+
+  const toggleFilter = (type: 'input' | 'output', value: string) => {
+    if (type === 'input') {
+      setSelectedInputs(prev => 
+        prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
+      );
+    } else {
+      setSelectedOutputs(prev => 
+        prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
+      );
+    }
+  };
 
   const nodeItems = [
-    { type: 'textNode', label: 'Prompt', icon: Type },
-    { type: 'uploadNode', label: 'Import', icon: Download },
-    { type: 'imageNode', label: 'Image', icon: LucideImage },
-    { type: 'llmNode', label: 'Run Any LLM', icon: Sparkles }
+    { type: 'textNode', label: 'Prompt', icon: Type, inputs: [], outputs: ['text'] },
+    { type: 'uploadNode', label: 'Import', icon: Download, inputs: [], outputs: ['image'] },
+    { type: 'imageNode', label: 'Image', icon: LucideImage, inputs: ['text', 'image'], outputs: ['image'] },
+    { type: 'llmNode', label: 'Run Any LLM', icon: Sparkles, inputs: ['text', 'image'], outputs: ['text'] }
   ];
 
-  const filteredItems = nodeItems.filter(item => 
-    item.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = nodeItems.filter(item => {
+    if (searchQuery && !item.label.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+
+    if (selectedOutputs.includes('text') && selectedOutputs.includes('image')) {
+      return false;
+    }
+
+    const hasInputFilter = selectedInputs.length > 0;
+    const hasOutputFilter = selectedOutputs.length > 0;
+
+    if (!hasInputFilter && !hasOutputFilter) return true;
+
+    if (!hasInputFilter && selectedOutputs.length === 1 && selectedOutputs[0] === 'text') {
+      return item.type === 'textNode' || item.type === 'llmNode';
+    }
+
+    if (!hasInputFilter && selectedOutputs.length === 1 && selectedOutputs[0] === 'image') {
+      return item.type === 'uploadNode' || item.type === 'imageNode';
+    }
+
+    if (hasInputFilter && selectedOutputs.length === 1 && selectedOutputs[0] === 'image') {
+      return item.type === 'imageNode';
+    }
+
+    if (hasInputFilter && selectedOutputs.length === 1 && selectedOutputs[0] === 'text') {
+      return item.type === 'llmNode';
+    }
+
+    if (hasInputFilter && !hasOutputFilter) {
+      return selectedInputs.some(i => item.inputs.includes(i));
+    }
+
+    return false;
+  });
   
   return (
     <div className="flex h-screen flex-shrink-0 z-20 bg-[rgb(33,33,38)] transition-all" style={{ fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif' }}>
@@ -250,7 +297,7 @@ export default function Sidebar() {
                                             paddingLeft: '8px'
                                         }}
                                     >
-                                        Create New
+                                        Create New Workflow
                                     </span>
                                 </button>
                                 <button 
@@ -272,7 +319,7 @@ export default function Sidebar() {
                                             marginBottom: '8px'
                                         }}
                                     >
-                                        {isSaving ? 'Saving...' : 'Save Current'}
+                                        {isSaving ? 'Saving...' : 'Save Workflow'}
                                     </span>
                                 </button>
                                 <div className="w-[184px] h-[0.5px] bg-[#ffffff0a] my-[6px]" />
@@ -372,23 +419,84 @@ export default function Sidebar() {
                                  </span>
                                  
                                  <div className="relative group/input">
-                                     <button className="bg-[#2a2a30] px-1.5 py-0.5 rounded-[4px] border border-[#2a2a30] tracking-wide transition-all"
-                                         style={{ 
-                                             color: 'rgba(255, 255, 255, 0.6)',
-                                             fontSize: '12px',
-                                             fontWeight: 400,
-                                             fontFamily: '"DM Mono", monospace',
-                                             lineHeight: 'normal'
-                                         }}
-                                     >
-                                         Input
-                                     </button>
-                                     {/* Hidden logic for list - showing it on hover for now as a demo of "open select list" */}
-                                     <div className="absolute top-full left-0 mt-1 w-24 bg-[#212126] border border-[#ffffff14] rounded-lg shadow-xl opacity-0 invisible group-hover/input:opacity-100 group-hover/input:visible z-50 transition-all py-1">
-                                         <button className="w-full text-left px-3 py-1.5 text-[12px] text-white hover:bg-[#2a2a30] transition-colors">Text</button>
-                                         <button className="w-full text-left px-3 py-1.5 text-[12px] text-white hover:bg-[#2a2a30] transition-colors">Image</button>
+                                     <div className="flex items-center gap-[4px]">
+                                         {selectedInputs.length === 0 ? (
+                                             <button className="bg-[#2a2a30] px-1.5 h-[16px] rounded-[2px] border border-[#2a2a30] tracking-wide transition-all"
+                                                 style={{ 
+                                                     color: 'rgba(255, 255, 255, 0.6)',
+                                                     fontSize: '12px',
+                                                     fontWeight: 400,
+                                                     fontFamily: '"DM Mono", monospace',
+                                                     lineHeight: 'normal'
+                                                 }}
+                                             >
+                                                 Input
+                                             </button>
+                                         ) : (
+                                             selectedInputs.map(input => (
+                                                 <button 
+                                                     key={input}
+                                                     onClick={() => toggleFilter('input', input)}
+                                                     className="px-1.5 h-[16px] rounded-[2px] tracking-wide transition-all border-none"
+                                                     style={{ 
+                                                         backgroundColor: input === 'text' ? 'rgb(241, 160, 250)' : 'rgb(110, 221, 179)',
+                                                         color: 'rgb(33, 33, 38)',
+                                                         fontSize: '12px',
+                                                         fontWeight: 400,
+                                                         fontFamily: '"DM Mono", monospace',
+                                                         lineHeight: 'normal'
+                                                     }}
+                                                 >
+                                                     {input.charAt(0).toUpperCase() + input.slice(1)}
+                                                 </button>
+                                             ))
+                                         )}
                                      </div>
-                                 </div>
+                                     <div className="absolute top-full left-0 mt-1 w-[103.2px] bg-[#212126] border border-[#ffffff14] rounded-lg shadow-xl opacity-0 invisible group-hover/input:opacity-100 group-hover/input:visible z-50 transition-all pt-[12px] pb-1.5 px-2 flex flex-col gap-2">
+                                         <button 
+                                            onClick={() => toggleFilter('input', 'text')}
+                                            className="w-full bg-transparent text-left px-2 py-2.5 rounded-[4px] hover:bg-[#2a2a30] transition-colors flex items-center justify-between group/item border-none outline-none ring-0 focus:outline-none"
+                                         >
+                                            <span 
+                                                className="px-1.5 h-[16px] rounded-[2px] flex items-center"
+                                                style={{ 
+                                                    backgroundColor: 'rgb(241, 160, 250)',
+                                                    color: 'rgb(33, 33, 38)',
+                                                    fontSize: '12px',
+                                                    fontFamily: '"DM Mono", monospace',
+                                                    lineHeight: 'normal',
+                                                    marginBottom: '8px',
+                                                    paddingLeft: '8px',
+                                                    paddingRight: '8px'
+                                                }}
+                                            >
+                                                Text
+                                            </span>
+                                            {selectedInputs.includes('text') && <Check size={16} color="white" strokeWidth={2} />}
+                                         </button>
+                                         <button 
+                                            onClick={() => toggleFilter('input', 'image')}
+                                            className="w-full bg-transparent text-left px-2 py-2.5 rounded-[4px] hover:bg-[#2a2a30] transition-colors flex items-center justify-between group/item border-none outline-none ring-0 focus:outline-none"
+                                         >
+                                            <span 
+                                                className="px-1.5 h-[16px] rounded-[2px] flex items-center"
+                                                style={{ 
+                                                    backgroundColor: 'rgb(110, 221, 179)',
+                                                    color: 'rgb(33, 33, 38)',
+                                                    fontSize: '12px',
+                                                    fontFamily: '"DM Mono", monospace',
+                                                    lineHeight: 'normal',
+                                                    marginBottom: '8px',
+                                                    paddingLeft: '8px',
+                                                    paddingRight: '8px'
+                                                }}
+                                            >
+                                                Image
+                                            </span>
+                                            {selectedInputs.includes('image') && <Check size={16} color="white" strokeWidth={2} />}
+                                         </button>
+                                     </div>
+                                  </div>
          
                                  <span style={{ 
                                      color: 'rgb(255, 255, 255)',
@@ -400,23 +508,85 @@ export default function Sidebar() {
                                      to
                                  </span>
          
-                                 <div className="relative group/output">
-                                     <button className="bg-[#2a2a30] px-1.5 py-0.5 rounded-[4px] border border-[#2a2a30] tracking-wide transition-all"
-                                         style={{ 
-                                             color: 'rgba(255, 255, 255, 0.6)',
-                                             fontSize: '12px',
-                                             fontWeight: 400,
-                                             fontFamily: '"DM Mono", monospace',
-                                             lineHeight: 'normal',
-                                         }}
-                                     >
-                                         Output
-                                     </button>
-                                     <div className="absolute top-full left-0 mt-1 w-24 bg-[#212126] border border-[#ffffff14] rounded-lg shadow-xl opacity-0 invisible group-hover/output:opacity-100 group-hover/output:visible z-50 transition-all py-1">
-                                         <button className="w-full text-left px-3 py-1.5 text-[12px] text-white hover:bg-[#2a2a30] transition-colors">Text</button>
-                                         <button className="w-full text-left px-3 py-1.5 text-[12px] text-white hover:bg-[#2a2a30] transition-colors">Image</button>
+                                  <div className="relative group/output">
+                                     <div className="flex items-center gap-[4px]">
+                                         {selectedOutputs.length === 0 ? (
+                                             <button className="bg-[#2a2a30] px-1.5 h-[16px] rounded-[2px] border border-[#2a2a30] tracking-wide transition-all"
+                                                 style={{ 
+                                                     color: 'rgba(255, 255, 255, 0.6)',
+                                                     fontSize: '12px',
+                                                     fontWeight: 400,
+                                                     fontFamily: '"DM Mono", monospace',
+                                                     lineHeight: 'normal',
+                                                 }}
+                                             >
+                                                 Output
+                                             </button>
+                                         ) : (
+                                             selectedOutputs.map(output => (
+                                                 <button 
+                                                     key={output}
+                                                     onClick={() => toggleFilter('output', output)}
+                                                     className="px-1.5 h-[16px] rounded-[2px] tracking-wide transition-all border-none"
+                                                     style={{ 
+                                                         backgroundColor: output === 'text' ? 'rgb(241, 160, 250)' : 'rgb(110, 221, 179)',
+                                                         color: 'rgb(33, 33, 38)',
+                                                         fontSize: '12px',
+                                                         fontWeight: 400,
+                                                         fontFamily: '"DM Mono", monospace',
+                                                         lineHeight: 'normal'
+                                                     }}
+                                                 >
+                                                     {output.charAt(0).toUpperCase() + output.slice(1)}
+                                                 </button>
+                                             ))
+                                         )}
                                      </div>
-                                 </div>
+                                       <div className="absolute top-full left-0 mt-1 w-[103.2px] bg-[#212126] border border-[#ffffff14] rounded-lg shadow-xl opacity-0 invisible group-hover/output:opacity-100 group-hover/output:visible z-50 transition-all pt-[12px] pb-1.5 px-2 flex flex-col gap-2">
+                                          <button 
+                                             onClick={() => toggleFilter('output', 'text')}
+                                             className="w-full bg-transparent text-left px-2 py-2.5 rounded-[4px] hover:bg-[#2a2a30] transition-colors flex items-center justify-between group/item border-none outline-none ring-0 focus:outline-none"
+                                          >
+                                            <span 
+                                                className="px-1.5 h-[16px] rounded-[2px] flex items-center"
+                                                style={{ 
+                                                    backgroundColor: 'rgb(241, 160, 250)',
+                                                    color: 'rgb(33, 33, 38)',
+                                                    fontSize: '12px',
+                                                    fontFamily: '"DM Mono", monospace',
+                                                    lineHeight: 'normal',
+                                                    marginBottom: '8px',
+                                                    paddingLeft: '8px',
+                                                    paddingRight: '8px'
+                                                }}
+                                            >
+                                                Text
+                                            </span>
+                                              {selectedOutputs.includes('text') && <Check size={16} color="white" strokeWidth={2} />}
+                                          </button>
+                                          <button 
+                                             onClick={() => toggleFilter('output', 'image')}
+                                             className="w-full bg-transparent text-left px-2 py-2.5 rounded-[4px] hover:bg-[#2a2a30] transition-colors flex items-center justify-between group/item border-none outline-none ring-0 focus:outline-none"
+                                          >
+                                            <span 
+                                                className="px-1.5 h-[16px] rounded-[2px] flex items-center"
+                                                style={{ 
+                                                    backgroundColor: 'rgb(110, 221, 179)',
+                                                    color: 'rgb(33, 33, 38)',
+                                                    fontSize: '12px',
+                                                    fontFamily: '"DM Mono", monospace',
+                                                    lineHeight: 'normal',
+                                                    marginBottom: '8px',
+                                                    paddingLeft: '8px',
+                                                    paddingRight: '8px'
+                                                }}
+                                            >
+                                                Image
+                                            </span>
+                                              {selectedOutputs.includes('image') && <Check size={16} color="white" strokeWidth={2} />}
+                                          </button>
+                                      </div>
+                                  </div>
                               </div>
                           )}
                      </div>
@@ -430,7 +600,7 @@ export default function Sidebar() {
                 {/* Quick Access Grid */}
                 <div className="pl-[16px] pr-[16px] pt-0 flex-1 overflow-y-auto w-full">
                     {/* <div className="h-4 w-full shrink-0" /> */}
-                    {!searchQuery && (
+                    {(!searchQuery && filteredItems.length > 0) && (
                         <h3 
                             style={{ 
                                 color: 'rgb(255, 255, 255)',
@@ -446,28 +616,35 @@ export default function Sidebar() {
                     )}
                     
                     <div className="flex flex-wrap gap-[8px] w-full">
-                        {filteredItems.map((item) => (
-                            <div 
-                                key={item.type}
-                                className="w-[99.6px] h-[100px] bg-[rgb(43,43,47)] border border-[#ffffff1c] rounded-[5px] flex flex-col items-center justify-center gap-[8px] cursor-grab hover:bg-[#2a2a30] transition-all group"
-                                onDragStart={(event) => onDragStart(event, item.type)}
-                                draggable
-                            >
-                                <item.icon size={20} className="text-[#e4e4e7] group-hover:text-white transition-colors stroke-[1.5px]" />
-                                <span 
-                                    style={{ 
-                                        color: 'rgb(255, 255, 255)',
-                                        fontSize: '12px',
-                                        fontWeight: 400,
-                                        fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
-                                        lineHeight: 'normal'
-                                    }}
-                                    className="tracking-normal text-center px-1"
+                        {filteredItems.length > 0 ? (
+                            filteredItems.map((item) => (
+                                <div 
+                                    key={item.type}
+                                    className="w-[99.6px] h-[100px] bg-[rgb(43,43,47)] border border-[#ffffff1c] rounded-[5px] flex flex-col items-center justify-center gap-[8px] cursor-grab hover:bg-[#2a2a30] transition-all group"
+                                    onDragStart={(event) => onDragStart(event, item.type)}
+                                    draggable
                                 >
-                                    {item.label}
-                                </span>
+                                    <item.icon size={20} className="text-[#e4e4e7] group-hover:text-white transition-colors stroke-[1.5px]" />
+                                    <span 
+                                        style={{ 
+                                            color: 'rgb(255, 255, 255)',
+                                            fontSize: '12px',
+                                            fontWeight: 400,
+                                            fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                                            lineHeight: 'normal'
+                                        }}
+                                        className="tracking-normal text-center px-1"
+                                    >
+                                        {item.label}
+                                    </span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="w-full flex flex-col items-center justify-center py-8 opacity-40">
+                                
+                                <span className="text-white text-[12px]">No results match for this search</span>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </>
