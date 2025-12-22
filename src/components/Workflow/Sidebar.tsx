@@ -1,17 +1,61 @@
 "use client";
 
-import { DragEvent, useState, useEffect } from 'react';
+import { DragEvent, useState, useEffect, useRef } from 'react';
 import { 
   Search, History, Image as LucideImage, Sparkles, 
- Download, Type
+  Download, Type, ChevronDown, Plus, Save, Upload
 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 
 export default function Sidebar() {
-  const { saveWorkflow, workflowName, setWorkflowName } = useWorkflowStore();
+  const { 
+    workflowName, setWorkflowName, workflows, fetchWorkflows, 
+    loadWorkflow, createNewWorkflow, saveWorkflow, isSaving,
+    exportWorkflow, importWorkflow
+  } = useWorkflowStore();
   const [activeTab, setActiveTab] = useState<string | null>('search');
   const [localTitle, setLocalTitle] = useState(workflowName);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const json = JSON.parse(event.target?.result as string);
+            const result = importWorkflow(json);
+            if (!result.success) {
+                alert(`Import Failed: ${result.error}`);
+            }
+        } catch (error) {
+            alert("Invalid File: This is not a valid JSON workflow file.");
+        }
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  // Fetch workflows once on mount
+  useEffect(() => {
+    fetchWorkflows();
+  }, [fetchWorkflows]);
+
+  // Handle clicking outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            setIsDropdownOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Sync tab title with workflow name (from store)
   useEffect(() => {
@@ -102,38 +146,185 @@ export default function Sidebar() {
         
         {(activeTab === 'search' || activeTab === 'history') && (
             <>
-                  {/* Workspace Title & Workflow Name */}
+                  {/* Editable Workflow Title & Dropdown Toggle */}
                   <div className="h-[72px] w-full flex items-center justify-center shrink-0">
-                    <div className="w-[220px] h-[40px] flex items-center justify-center bg-[rgb(33,33,38)] group">
-                        <input 
-                            type="text" 
-                            value={localTitle} 
-                            onChange={(e) => setLocalTitle(e.target.value)}
-                            onBlur={(e) => {
-                                handleTitleSubmit();
-                                e.currentTarget.style.borderColor = 'transparent';
-                                e.currentTarget.style.fontSize = '14px';
-                            }}
-                            onFocus={(e) => {
-                                e.currentTarget.style.borderColor = 'rgb(211,211,212)';
-                                e.currentTarget.style.fontSize = '12px';
-                            }}
-                            onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
-                            className="bg-transparent outline-none focus:ring-0 cursor-text text-left transition-all rounded-[2px]"
-                            style={{ 
-                                width: '196px',
-                                height: '17.6px',
-                                color: 'rgb(255, 255, 255)',
-                                fontSize: '14px',
-                                fontWeight: 500,
-                                fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
-                                lineHeight: 'normal',
-                                border: '0.5px solid transparent',
-                                paddingLeft: '6px',
-                                marginTop: '8px'
-                            }}
-                            placeholder="Workflow Name"
-                        />
+                    <div ref={dropdownRef} className="relative z-[100]">
+                        <div className="w-[220px] h-[40px] flex items-center justify-center bg-[rgb(33,33,38)] group">
+                            <input 
+                                type="text" 
+                                value={localTitle} 
+                                onChange={(e) => setLocalTitle(e.target.value)}
+                                onBlur={(e) => {
+                                    handleTitleSubmit();
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                    e.currentTarget.style.fontSize = '14px';
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = 'rgb(211,211,212)';
+                                    e.currentTarget.style.fontSize = '12px';
+                                }}
+                                onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
+                                className="bg-transparent outline-none focus:ring-0 cursor-text text-left transition-all rounded-[2px]"
+                                style={{ 
+                                    width: '184px',
+                                    height: '17.6px',
+                                    color: 'rgb(255, 255, 255)',
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                                    lineHeight: 'normal',
+                                    border: '0.5px solid transparent',
+                                    paddingLeft: '6px',
+                                    marginTop: '8px'
+                                }}
+                                placeholder="Workflow Name"
+                            />
+                            <button 
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className={cn(
+                                    "mt-[8px] p-1.5 rounded-[4px] transition-all shrink-0 border-none outline-none shadow-none focus:outline-none ring-0",
+                                    isDropdownOpen ? "bg-[rgb(53,53,57)]" : "hover:bg-[rgb(53,53,57)] bg-transparent"
+                                )}
+                            >
+                                <ChevronDown 
+                                    size={14} 
+                                    strokeWidth={1.5}
+                                    className={cn(
+                                        "transition-transform duration-200 text-[rgb(211,211,212)]", 
+                                        isDropdownOpen && "rotate-180"
+                                    )} 
+                                />
+                            </button>
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        {isDropdownOpen && (
+                            <div 
+                                className="absolute top-[44px] left-[-4px] bg-[rgb(33,33,38)] border border-[#ffffff14] rounded-[8px] shadow-[0_8px_32px_rgba(0,0,0,0.5)] py-2 z-[101] flex flex-col items-center"
+                                style={{ width: '220.4px' }}
+                            >
+                                <div className="w-full max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col items-center mt-[8px]">
+                                    {workflows.length === 0 ? (
+                                        <div className="w-[184px] px-[3px] py-1 text-[12px] text-[rgba(255,255,255,0.4)] italic">No workflows found</div>
+                                    ) : (
+                                        workflows.map((w) => (
+                                            <button 
+                                                key={w.id}
+                                                onClick={() => {
+                                                    loadWorkflow(w.id);
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all group bg-transparent border-none outline-none shadow-none cursor-pointer"
+                                            >
+                                                <span 
+                                                    className="truncate pointer-events-none"
+                                                    style={{ 
+                                                        fontSize: '12px', 
+                                                        fontWeight: 400,
+                                                        fontFamily: '"DM Sans", sans-serif',
+                                                        color: 'rgb(255, 255, 255)'
+                                                    }}
+                                                >
+                                                    {w.name}
+                                                </span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                                <div className="w-[184px] h-[0.5px] bg-[#ffffff0a] my-[6px]" />
+                                <button 
+                                    onClick={() => {
+                                        createNewWorkflow();
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer"
+                                >
+                                    <Plus size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
+                                    <span 
+                                        className="pointer-events-none"
+                                        style={{ 
+                                            fontSize: '12px', 
+                                            fontWeight: 400,
+                                            fontFamily: '"DM Sans", sans-serif',
+                                            color: 'rgb(255, 255, 255)',
+                                            paddingLeft: '8px'
+                                        }}
+                                    >
+                                        Create New
+                                    </span>
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        saveWorkflow();
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer"
+                                >
+                                    <Save size={14} style={{ color: 'rgb(255, 255, 255)', marginBottom: '8px' }} className={cn("pointer-events-none", isSaving && "animate-spin")} strokeWidth={1.5} />
+                                    <span 
+                                        className="pointer-events-none"
+                                        style={{ 
+                                            fontSize: '12px', 
+                                            fontWeight: 400,
+                                            fontFamily: '"DM Sans", sans-serif',
+                                            color: 'rgb(255, 255, 255)',
+                                            paddingLeft: '8px',
+                                            marginBottom: '8px'
+                                        }}
+                                    >
+                                        {isSaving ? 'Saving...' : 'Save Current'}
+                                    </span>
+                                </button>
+                                <div className="w-[184px] h-[0.5px] bg-[#ffffff0a] my-[6px]" />
+                                
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    className="hidden" 
+                                    accept=".json" 
+                                    onChange={handleImport}
+                                />
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer"
+                                >
+                                    <Upload size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
+                                    <span 
+                                        className="pointer-events-none"
+                                        style={{ 
+                                            fontSize: '12px', 
+                                            fontWeight: 400,
+                                            fontFamily: '"DM Sans", sans-serif',
+                                            color: 'rgb(255, 255, 255)',
+                                            paddingLeft: '8px'
+                                        }}
+                                    >
+                                        Import JSON
+                                    </span>
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        exportWorkflow();
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer mt-1"
+                                >
+                                    <Download size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
+                                    <span 
+                                        className="pointer-events-none"
+                                        style={{ 
+                                            fontSize: '12px', 
+                                            fontWeight: 400,
+                                            fontFamily: '"DM Sans", sans-serif',
+                                            color: 'rgb(255, 255, 255)',
+                                            paddingLeft: '8px'
+                                        }}
+                                    >
+                                        Export JSON
+                                    </span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                   </div>
                   

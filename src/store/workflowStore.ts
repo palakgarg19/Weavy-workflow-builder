@@ -23,6 +23,9 @@ type WorkflowState = {
   nodes: Node[];
   edges: Edge[];
   workflowName: string;
+  currentWorkflowId: string | null;
+  workflows: Array<{ id: string, name: string }>;
+  isSaving: boolean;
   // History
   history: {
     past: HistoryState[];
@@ -35,14 +38,21 @@ type WorkflowState = {
   addNode: (node: Node) => void;
   updateNodeData: (id: string, data: any) => void;
   runNode: (nodeId: string) => Promise<void>;
-  saveWorkflow: (name: string) => Promise<void>;
+  
+  // Persistence
+  fetchWorkflows: () => Promise<void>;
+  saveWorkflow: () => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
+  createNewWorkflow: () => void;
   loadSampleWorkflow: () => void;
   
   // History Actions
   undo: () => void;
   redo: () => void;
   setWorkflowName: (name: string) => void;
+  // Local JSON Persistence
+  exportWorkflow: () => void;
+  importWorkflow: (json: any) => { success: boolean, error?: string };
   // Helper to push history
   takeSnapshot: () => void;
 };
@@ -57,6 +67,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   nodes: [],
   edges: [],
   workflowName: "My First Weavy",
+  currentWorkflowId: null,
+  workflows: [],
+  isSaving: false,
   history: {
     past: [],
     future: [],
@@ -329,19 +342,45 @@ runNode: async (nodeId: string) => {
         });
     }
   },
-  saveWorkflow: async (name: string) => {
-    const { nodes, edges } = get();
+  fetchWorkflows: async () => {
     try {
-        const response = await fetch('/api/workflows', {
-            method: 'POST',
+        const response = await fetch('/api/workflows');
+        const data = await response.json();
+        if (Array.isArray(data)) {
+            set({ workflows: data.map((w: any) => ({ id: w.id, name: w.name })) });
+        }
+    } catch (error) {
+        console.error("Failed to fetch workflows", error);
+    }
+  },
+
+  saveWorkflow: async () => {
+    const { nodes, edges, workflowName, currentWorkflowId } = get();
+    set({ isSaving: true });
+    try {
+        const method = currentWorkflowId ? 'PUT' : 'POST';
+        const url = currentWorkflowId ? `/api/workflows/${currentWorkflowId}` : '/api/workflows';
+        
+        const response = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, nodes, edges }),
+            body: JSON.stringify({ name: workflowName, nodes, edges }),
         });
-        if (!response.ok) throw new Error("Failed to save");
-        alert("Workflow saved!");
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to save");
+        
+        if (!currentWorkflowId && data.id) {
+            set({ currentWorkflowId: data.id });
+        }
+        
+        // Refresh list
+        await get().fetchWorkflows();
     } catch (error) {
         console.error(error);
         alert("Failed to save workflow");
+    } finally {
+        set({ isSaving: false });
     }
   },
   loadWorkflow: async (id: string) => {
@@ -349,6 +388,8 @@ runNode: async (nodeId: string) => {
         const response = await fetch(`/api/workflows/${id}`);
         const data = await response.json();
          set({ 
+             currentWorkflowId: id,
+             workflowName: data.name,
              nodes: data.nodes, 
              edges: data.edges,
              history: { past: [], future: [] }
@@ -358,10 +399,20 @@ runNode: async (nodeId: string) => {
         alert("Failed to load workflow");
     }
   },
+  createNewWorkflow: () => {
+      set({
+          currentWorkflowId: null,
+          workflowName: "Untitled Workflow",
+          nodes: [],
+          edges: [],
+          history: { past: [], future: [] }
+      });
+  },
+
   loadSampleWorkflow: () => {
       // Pre-built Product Listing Generator
       const sampleNodes: Node[] = [
-          { id: '1', type: 'textNode', position: { x: 100, y: 100 }, data: { text: 'Product: Premium Leather Backpack\nFeatures: Waterproof, 15" Laptop Sleeve, Anti-theft pocket.' } },
+          { id: '1', type: 'textNode', position: { x: 100, y: 100 }, data: { text: "Product: Premium Leather Backpack\nFeatures: Waterproof, 15\" Laptop Sleeve, Anti-theft pocket." } },
           { id: '2', type: 'imageNode', position: { x: 100, y: 400 }, data: { image: null } },
           { id: '3', type: 'llmNode', position: { x: 500, y: 200 }, data: { model: 'gemini-1.5-flash', systemPrompt: 'You are a professional copywriter. Write a compelling product listing based on the description and image provided.', output: '' } }
       ];
@@ -374,5 +425,50 @@ runNode: async (nodeId: string) => {
           edges: sampleEdges,
           history: { past: [], future: [] }
       });
+  },
+
+  exportWorkflow: () => {
+    const { nodes, edges, workflowName } = get();
+    const data = {
+        name: workflowName,
+        nodes,
+        edges,
+        version: "1.0",
+        exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${workflowName.replace(/\s+/g, '_').toLowerCase()}_workflow.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  importWorkflow: (json: any) => {
+    try {
+        // Validation
+        if (!json || typeof json !== 'object') throw new Error("Invalid JSON file");
+        if (!Array.isArray(json.nodes)) throw new Error("Invalid workflow: Missing nodes");
+        if (!Array.isArray(json.edges)) throw new Error("Invalid workflow: Missing edges");
+
+        // Take snapshot before overwriting
+        get().takeSnapshot();
+
+        set({
+            workflowName: json.name || "Imported Workflow",
+            nodes: json.nodes,
+            edges: json.edges,
+            currentWorkflowId: null, // Reset ID as this is a local file
+            history: { past: [], future: [] }
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Import Error:", error);
+        return { success: false, error: error.message };
+    }
   }
 }));
