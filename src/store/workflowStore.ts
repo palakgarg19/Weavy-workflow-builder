@@ -44,7 +44,6 @@ type WorkflowState = {
   saveWorkflow: () => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
   createNewWorkflow: () => void;
-  loadSampleWorkflow: () => void;
 
   // History Actions
   undo: () => void;
@@ -183,7 +182,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
 
     set({
-      edges: addEdge({ ...connection, style: { stroke, strokeWidth: 2 } }, get().edges),
+      edges: addEdge({ ...connection, style: { stroke, strokeWidth: 3 } }, get().edges),
     });
   },
 
@@ -430,24 +429,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       workflowName: "Untitled Workflow",
       nodes: [],
       edges: [],
-      history: { past: [], future: [] }
-    });
-  },
-
-  loadSampleWorkflow: () => {
-    // Pre-built Product Listing Generator
-    const sampleNodes: Node[] = [
-      { id: '1', type: 'textNode', position: { x: 100, y: 100 }, data: { text: "Product: Premium Leather Backpack\nFeatures: Waterproof, 15\" Laptop Sleeve, Anti-theft pocket." } },
-      { id: '2', type: 'imageNode', position: { x: 100, y: 400 }, data: { image: null } },
-      { id: '3', type: 'llmNode', position: { x: 500, y: 200 }, data: { model: 'gemini-1.5-flash', systemPrompt: 'You are a professional copywriter. Write a compelling product listing based on the description and image provided.', output: '' } }
-    ];
-    const sampleEdges: Edge[] = [
-      { id: 'e1-3', source: '1', target: '3', style: { stroke: '#c084fc', strokeWidth: 2 } },
-      { id: 'e2-3', source: '2', target: '3', style: { stroke: '#2dd4bf', strokeWidth: 2 } }
-    ];
-    set({
-      nodes: sampleNodes,
-      edges: sampleEdges,
       history: { past: [], future: [] }
     });
   },

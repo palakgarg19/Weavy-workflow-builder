@@ -196,6 +196,8 @@ function Flow() {
         onDragOver={onDragOver}
         connectionMode={ConnectionMode.Loose}
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+        minZoom={0.01}
+        maxZoom={3}
         deleteKeyCode={['Backspace', 'Delete']}
         panOnScroll={true}
         panOnDrag={true}
