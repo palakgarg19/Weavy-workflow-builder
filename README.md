@@ -1,4 +1,4 @@
-# 🌊 Weavy Workflow Builder
+# Weavy Workflow Builder
 
 A powerful visual workflow builder for creating AI-powered automation pipelines with Google's Gemini AI. Build complex workflows by connecting nodes for text processing, image generation, and LLM interactions through an intuitive drag-and-drop interface.
 
@@ -24,17 +24,16 @@ A powerful visual workflow builder for creating AI-powered automation pipelines 
 
 #### 🖼️ Image Node
 - Generate images from text prompts using Pollinations AI
-- Image-to-image generation via Gemini vision
 - Dynamic preview with aspect-ratio-aware resizing
 - Support for multiple image inputs
 
 #### 📤 Upload Node
 - Upload local images (max 5MB)
 - Base64 encoding for seamless integration
-- Drag-and-drop or click to upload
+- Click to upload
 
 #### 🤖 LLM Node (Run Any LLM)
-- Powered by Google Gemini AI (2.5 Flash & Pro models)
+- Powered by Google Gemini AI (2.5 Flash model)
 - **System Prompt Support**: Define AI behavior with dedicated system prompt input
 - **System Prompt Propagation**: Automatically inherits system prompts from upstream nodes
 - Multiple image inputs for multimodal AI interactions
@@ -192,21 +191,6 @@ All API endpoints use **Zod schemas** for request validation:
 - Automatic validation error messages
 - Detailed error reporting for debugging
 
-## 🎨 Design Philosophy
-
-- **Premium Aesthetics**: Modern, vibrant UI with smooth animations
-- **User-Centric**: Intuitive interactions and clear visual feedback
-- **Performance**: Optimized rendering and state management
-- **Accessibility**: Keyboard shortcuts and clear visual indicators
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
 ## 🙏 Acknowledgments
 
 - [React Flow](https://reactflow.dev/) for the amazing workflow visualization library
@@ -215,5 +199,3 @@ This project is licensed under the MIT License.
 - [Vercel](https://vercel.com/) for Next.js and hosting platform
 
 ---
-
-**Built with ❤️ using Next.js and Google Gemini AI**
