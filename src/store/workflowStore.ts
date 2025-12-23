@@ -370,11 +370,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     try {
       const response = await fetch('/api/workflows');
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to fetch workflows");
+
       if (Array.isArray(data)) {
         set({ workflows: data.map((w: any) => ({ id: w.id, name: w.name })) });
       }
-    } catch (error) {
-      console.error("Failed to fetch workflows", error);
+    } catch (error: any) {
+      console.error("Fetch Workflows Error:", error);
     }
   },
 
@@ -392,7 +394,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to save");
+      if (!response.ok) throw new Error(data.error || "Failed to save workflow");
 
       if (!currentWorkflowId && data.id) {
         set({ currentWorkflowId: data.id });
@@ -400,9 +402,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
       // Refresh list
       await get().fetchWorkflows();
-    } catch (error) {
-      console.error(error);
-      alert("Failed to save workflow");
+    } catch (error: any) {
+      console.error("Save Workflow Error:", error);
+      alert(error.message || "Failed to save workflow");
     } finally {
       set({ isSaving: false });
     }
@@ -411,6 +413,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     try {
       const response = await fetch(`/api/workflows/${id}`);
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load workflow");
+
       set({
         currentWorkflowId: id,
         workflowName: data.name,
@@ -418,9 +422,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         edges: data.edges,
         history: { past: [], future: [] }
       });
-    } catch (error) {
-      console.error(error);
-      alert("Failed to load workflow");
+    } catch (error: any) {
+      console.error("Load Workflow Error:", error);
+      alert(error.message || "Failed to load workflow");
     }
   },
   createNewWorkflow: () => {
