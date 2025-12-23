@@ -31,14 +31,15 @@ A powerful visual workflow builder for creating AI-powered automation pipelines 
 - Upload local images (max 5MB)
 - Base64 encoding for seamless integration
 - Click to upload
+- Click to upload
 
 #### 🤖 LLM Node (Run Any LLM)
+- Powered by Google Gemini AI (2.5 Flash model)
 - Powered by Google Gemini AI (2.5 Flash model)
 - **System Prompt Support**: Define AI behavior with dedicated system prompt input
 - **System Prompt Propagation**: Automatically inherits system prompts from upstream nodes
 - Multiple image inputs for multimodal AI interactions
-- Real-time response streaming
-- Error handling with quota management
+- Error handling
 
 ### 💾 Workflow Management
 - **Persistent Storage**: Save workflows to PostgreSQL database
@@ -88,7 +89,7 @@ A powerful visual workflow builder for creating AI-powered automation pipelines 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/yourusername/weavy-workflow-builder.git
-   cd weavy-workflow-builder
+   cd Weavy-workflow-builder
    ```
 
 2. **Install dependencies**

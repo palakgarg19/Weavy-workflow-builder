@@ -335,7 +335,7 @@ export default function Sidebar() {
                                             onClick={() => fileInputRef.current?.click()}
                                             className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer"
                                         >
-                                            <Upload size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
+                                            <Download size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
                                             <span
                                                 className="pointer-events-none"
                                                 style={{
@@ -356,7 +356,7 @@ export default function Sidebar() {
                                             }}
                                             className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer mt-1"
                                         >
-                                            <Download size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
+                                            <Upload size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
                                             <span
                                                 className="pointer-events-none"
                                                 style={{
