@@ -254,12 +254,12 @@ function Flow() {
               "ml-[9px] flex items-center justify-center rounded-[4px] transition-all duration-200 outline-none focus:outline-none ring-0 shadow-none border-none",
               canUndo
                 ? 'bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white'
-                : 'bg-transparent text-[#52525b] cursor-not-allowed opacity-50'
+                : 'bg-transparent text-[#a1a1aa] cursor-not-allowed opacity-50'
             )}
             style={{ width: '28px', height: '28px' }}
             title="Undo (Ctrl+Z)"
           >
-            <Undo2 size={20} strokeWidth={1} className="shrink-0" />
+            <Undo2 size={24} strokeWidth={1.25} className="shrink-0" />
           </button>
 
           {/* Redo */}
@@ -270,12 +270,12 @@ function Flow() {
               "ml-[4px] flex items-center justify-center rounded-[4px] transition-all duration-200 outline-none focus:outline-none ring-0 shadow-none border-none",
               canRedo
                 ? 'bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white'
-                : 'bg-transparent text-[#52525b] cursor-not-allowed opacity-50'
+                : 'bg-transparent text-[#a1a1aa] cursor-not-allowed opacity-50'
             )}
             style={{ width: '28px', height: '28px' }}
             title="Redo (Ctrl+Y)"
           >
-            <Redo2 size={20} strokeWidth={1} className="shrink-0" />
+            <Redo2 size={24} strokeWidth={1.25} className="shrink-0" />
           </button>
 
           {/* Vertical Divider */}
