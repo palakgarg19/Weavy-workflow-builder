@@ -1,24 +1,17 @@
-import React, { useState, useRef } from 'react';
-import { Handle, Position, useReactFlow } from 'reactflow';
+import React, { useState, useRef, useEffect } from 'react';
+import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
 import { Plus, MoveRight, Loader2, MoreHorizontal, Asterisk } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
-import { DropdownMenu } from './DropdownMenu';
-import { RenameModal } from './RenameModal';
 
 /**
  * ImageNode - Generates images based on text prompts and optional input images.
  */
 export default function ImageNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
     const { updateNodeData, runNode } = useWorkflowStore();
-    const { deleteElements } = useReactFlow();
-
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+    const updateNodeInternals = useUpdateNodeInternals();
     const [isImageLoading, setIsImageLoading] = useState(false);
-    const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
     const [imageSize, setImageSize] = useState<{ width: number, height: number } | null>(null);
-    const menuButtonRef = useRef<HTMLButtonElement>(null);
 
     // Reset image loading state when output changes to a new URL
     React.useEffect(() => {
@@ -31,45 +24,19 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
 
     const imageInputCount = data.imageInputCount || 1;
 
+    // Update node internals when imageInputCount changes so React Flow recognizes new handles
+    useEffect(() => {
+        updateNodeInternals(id);
+    }, [imageInputCount, id, updateNodeInternals]);
+
     const handleAddImageInput = () => {
-        updateNodeData(id, { imageInputCount: imageInputCount + 1 });
-    };
-
-    const handleDelete = () => {
-        deleteElements({ nodes: [{ id }] });
-    };
-
-    const onRenameSubmit = (newName: string) => {
-        updateNodeData(id, { label: newName });
-        setIsRenameModalOpen(false);
-    };
-
-    const toggleMenu = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!isMenuOpen && menuButtonRef.current) {
-            const rect = menuButtonRef.current.getBoundingClientRect();
-            setMenuPosition({ x: rect.right - 128, y: rect.bottom + 4 });
+        if (imageInputCount < 10) {
+            updateNodeData(id, { imageInputCount: imageInputCount + 1 });
         }
-        setIsMenuOpen(!isMenuOpen);
     };
 
     return (
         <>
-            <RenameModal
-                isOpen={isRenameModalOpen}
-                initialValue={data.label || 'Image Generator'}
-                onClose={() => setIsRenameModalOpen(false)}
-                onRename={onRenameSubmit}
-            />
-
-            <DropdownMenu
-                isOpen={isMenuOpen}
-                position={menuPosition}
-                onClose={() => setIsMenuOpen(false)}
-                onRename={() => setIsRenameModalOpen(true)}
-                onDelete={handleDelete}
-            />
-
             <div className={cn(
                 "bg-[rgb(43,43,47)] border rounded-[16px] w-[460px] shadow-2xl flex flex-col group transition-all relative overflow-visible box-border pb-[20px]",
                 selected ? "border-[#52525b]" : "border-[#4a4a4f] hover:border-[#52525b]"
@@ -97,11 +64,9 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     </div>
 
                     <button
-                        ref={menuButtonRef}
-                        onClick={toggleMenu}
                         className={cn(
                             "rounded-[4px] transition-all duration-200 flex items-center justify-center relative z-10 border-none outline-none focus:outline-none ring-0 shadow-none",
-                            isMenuOpen ? "bg-[rgb(53,53,57)] text-white" : "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white"
+                            "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white"
                         )}
                         style={{ height: '28px', width: '28px' }}
                     >
@@ -185,7 +150,8 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                 <div className="mt-[15px] ml-[17px] flex items-center shrink-0 h-[36px]">
                     <button
                         onClick={handleAddImageInput}
-                        className="flex items-center gap-2 bg-transparent border-0 shrink-0 !text-white hover:bg-[rgb(53,53,57)] transition-colors px-1"
+                        disabled={imageInputCount >= 10}
+                        className="flex items-center gap-2 bg-transparent border-0 shrink-0 !text-white hover:bg-[rgb(53,53,57)] transition-colors px-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{
                             width: '180px',
                             height: '28px',
@@ -226,6 +192,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     type="target"
                     position={Position.Left}
                     id="text-in"
+                    isConnectableStart={false}
                     style={{
                         top: '60px',
                         borderColor: data.validationError ? 'rgb(241,160,250)' : 'rgb(241,160,250)',
@@ -271,6 +238,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                 type="target"
                                 position={Position.Left}
                                 id={`image-in-${index}`}
+                                isConnectableStart={false}
                                 style={{ top: `${topPosition}px` }}
                                 className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50"
                             />
@@ -291,6 +259,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                 <Handle
                     type="source"
                     position={Position.Right}
+                    isConnectableEnd={false}
                     style={{ top: '200px' }}
                     className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50"
                 />

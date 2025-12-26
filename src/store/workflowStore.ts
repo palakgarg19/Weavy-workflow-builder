@@ -172,7 +172,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     // Take snapshot before adding edge
     get().takeSnapshot();
 
-    const { nodes } = get();
+    const { nodes, edges } = get();
     const sourceNode = nodes.find(n => n.id === connection.source);
 
     // Default purple for text/LLM, Teal for Image/Upload
@@ -181,8 +181,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       stroke = 'rgb(110,221,179)';
     }
 
+    // IMPORTANT: Remove any existing edge connected to the same target handle
+    // This ensures only ONE incoming edge per input handle at a time
+    const filteredEdges = edges.filter(edge => {
+      // Keep edges that are NOT connected to the same target node + target handle
+      return !(edge.target === connection.target && edge.targetHandle === connection.targetHandle);
+    });
+
     set({
-      edges: addEdge({ ...connection, style: { stroke, strokeWidth: 3 } }, get().edges),
+      edges: addEdge({ ...connection, style: { stroke, strokeWidth: 3 } }, filteredEdges),
     });
   },
 

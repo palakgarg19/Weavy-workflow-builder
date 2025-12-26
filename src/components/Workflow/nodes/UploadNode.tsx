@@ -3,21 +3,15 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { Handle, Position, useReactFlow } from 'reactflow';
 import { MoreHorizontal, Upload, Link, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DropdownMenu } from './DropdownMenu';
-import { RenameModal } from './RenameModal';
+
 
 /**
  * UploadNode - Handles file uploads and provides an image source for downstream nodes.
  */
 export default function UploadNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
     const { updateNodeData } = useWorkflowStore();
-    const { deleteElements } = useReactFlow();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-    const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
     const [imageSize, setImageSize] = useState<{ width: number, height: number } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const menuButtonRef = useRef<HTMLButtonElement>(null);
 
     const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -43,41 +37,8 @@ export default function UploadNode({ id, data, selected }: { id: string, data: a
         }
     };
 
-    const handleDelete = () => {
-        deleteElements({ nodes: [{ id }] });
-    };
-
-    const onRenameSubmit = (newName: string) => {
-        updateNodeData(id, { label: newName });
-        setIsRenameModalOpen(false);
-    };
-
-    const toggleMenu = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!isMenuOpen && menuButtonRef.current) {
-            const rect = menuButtonRef.current.getBoundingClientRect();
-            setMenuPosition({ x: rect.right - 128, y: rect.bottom + 4 });
-        }
-        setIsMenuOpen(!isMenuOpen);
-    };
-
     return (
         <>
-            <RenameModal
-                isOpen={isRenameModalOpen}
-                initialValue={data.label || 'Image file'}
-                onClose={() => setIsRenameModalOpen(false)}
-                onRename={onRenameSubmit}
-            />
-
-            <DropdownMenu
-                isOpen={isMenuOpen}
-                position={menuPosition}
-                onClose={() => setIsMenuOpen(false)}
-                onRename={() => setIsRenameModalOpen(true)}
-                onDelete={handleDelete}
-            />
-
             <div className={cn(
                 "bg-[rgb(43,43,47)] border rounded-[16px] w-[460px] shadow-2xl flex flex-col group transition-all relative overflow-visible box-border pb-[20px]",
                 selected ? "border-[#52525b]" : "border-[#4a4a4f] hover:border-[#52525b]"
@@ -105,11 +66,9 @@ export default function UploadNode({ id, data, selected }: { id: string, data: a
                     </div>
 
                     <button
-                        ref={menuButtonRef}
-                        onClick={toggleMenu}
                         className={cn(
                             "rounded-[4px] transition-all duration-200 flex items-center justify-center relative z-10 border-none outline-none focus:outline-none ring-0 shadow-none",
-                            isMenuOpen ? "bg-[rgb(53,53,57)] text-white" : "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white"
+                            "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white"
                         )}
                         style={{ height: '28px', width: '28px' }}
                     >
@@ -178,6 +137,7 @@ export default function UploadNode({ id, data, selected }: { id: string, data: a
                 <Handle
                     type="source"
                     position={Position.Right}
+                    isConnectableEnd={false}
                     style={{ top: '200px' }}
                     className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50"
                 />
