@@ -8,6 +8,7 @@ import ReactFlow, {
   Panel,
   ConnectionMode,
   useReactFlow,
+  getOutgoers,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -18,6 +19,7 @@ import UploadNode from './nodes/UploadNode';
 import LLMNode from './nodes/LLMNode';
 import { generateId } from '@/lib/utils';
 import { Undo2, Redo2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronDown } from 'lucide-react';
+import { CustomConnectionLine } from './CustomConnectionLine';
 
 const nodeTypes = {
   textNode: TextNode,
@@ -182,6 +184,65 @@ function Flow() {
     [reactFlowInstance, addNode]
   );
 
+  // Validate connection types - prevent incompatible connections and cycles
+  const isValidConnection = useCallback(
+    (connection: any) => {
+      // Prevent self-connections
+      if (connection.source === connection.target) {
+        return false;
+      }
+
+      const sourceNode = nodes.find(n => n.id === connection.source);
+      const targetNode = nodes.find(n => n.id === connection.target);
+
+      if (!sourceNode || !targetNode) {
+        return false;
+      }
+
+      // 1. Cycle Detection
+      // Check if targetNode can reach sourceNode. If so, adding source->target would create a cycle.
+      const hasCycle = (node: Node, visited = new Set<string>()): boolean => {
+        if (visited.has(node.id)) return false;
+        visited.add(node.id);
+
+        const outgoers = getOutgoers(node, nodes, edges);
+        if (outgoers.some(outgoer => outgoer.id === connection.source)) {
+          return true;
+        }
+        return outgoers.some(outgoer => hasCycle(outgoer, visited));
+      };
+
+      if (hasCycle(targetNode)) {
+        return false;
+      }
+
+      // 2. Type Compatibility & Handle Validation
+      // Determine source handle type
+      const isSourceImage = sourceNode.type === 'uploadNode' || sourceNode.type === 'imageNode';
+      const isSourceText = sourceNode.type === 'textNode' || sourceNode.type === 'llmNode';
+
+      // Determine target handle type based on handle ID
+      const targetHandleId = connection.targetHandle || '';
+
+      // If it's an output handle being targeted, it's NOT an input handle
+      if (targetHandleId.endsWith('-out')) {
+        return false;
+      }
+
+      const isTargetImageHandle = targetHandleId.startsWith('image-in');
+      const isTargetTextHandle = targetHandleId === 'prompt-in' ||
+        targetHandleId === 'system-prompt-in' ||
+        targetHandleId === 'text-in';
+
+      // Allow connection only if types match
+      if (isSourceImage && isTargetImageHandle) return true;
+      if (isSourceText && isTargetTextHandle) return true;
+
+      return false;
+    },
+    [nodes, edges]
+  );
+
   return (
     <div className="flex-1 h-full w-full bg-[#0a0a0a]" ref={reactFlowWrapper}>
       <ReactFlow
@@ -190,6 +251,8 @@ function Flow() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        connectionLineComponent={CustomConnectionLine}
         nodeTypes={nodeTypes}
         onInit={setReactFlowInstance}
         onDrop={onDrop}

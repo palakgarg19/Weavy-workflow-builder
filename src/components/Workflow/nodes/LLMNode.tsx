@@ -173,8 +173,6 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     isConnectableStart={false}
                     style={{
                         top: '60px',
-                        borderColor: data.validationError ? 'rgb(241,160,250)' : 'rgb(241,160,250)',
-                        backgroundColor: data.validationError ? 'rgb(241,160,250)' : '#2b2b2f'
                     }}
                     className={cn(
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
@@ -184,11 +182,10 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     {data.validationError && (
                         <>
                             <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
-                                <Asterisk size={12} className="text-[rgb(232,85,85)] stroke-[4px]" />
+                                <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
                             </div>
-                            <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 px-2 py-1 bg-[#18181b] text-white text-[12px] font-medium rounded-[4px] whitespace-nowrap opacity-0 group-hover/handle:opacity-100 transition-opacity shadow-xl border border-[#27272a] pointer-events-none z-[100]">
-                                {data.validationError}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-[#18181b]"></div>
+                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(241,160,250)] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-50 pointer-events-none">
+                                Missing Connection
                             </div>
                         </>
                     )}
@@ -214,8 +211,9 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     id="system-prompt-in"
                     isConnectableStart={false}
                     style={{ top: '100px' }}
-                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !left-[-6px] z-50 transition-colors"
-                />
+                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !left-[-6px] z-50 transition-colors group/handle"
+                >
+                </Handle>
 
                 {selected && (
                     <div className="absolute left-[-150px] top-[100px] -translate-y-1/2 w-[125px] flex items-center justify-end pr-2 animate-in fade-in duration-200 z-50">
@@ -225,6 +223,7 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     </div>
                 )}
 
+                {/* Dynamic Image Input Handles */}
                 {Array.from({ length: imageInputCount }).map((_, index) => {
                     const topPosition = 140 + (index * 40);
                     return (
@@ -235,8 +234,9 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                                 id={`image-in-${index}`}
                                 isConnectableStart={false}
                                 style={{ top: `${topPosition}px` }}
-                                className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50"
-                            />
+                                className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50 transition-colors group/handle"
+                            >
+                            </Handle>
                             {selected && (
                                 <div
                                     className="absolute -translate-y-1/2 w-[100px] flex items-center justify-end pr-1 animate-in fade-in duration-200 z-50"
@@ -256,13 +256,13 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     position={Position.Right}
                     id="response-out"
                     isConnectableEnd={false}
-                    style={{ top: '100px' }}
-                    className="!w-3 !h-3 !bg-
-                    [#2b2b2f] !border-4 !border-[rgb(241,160,250)] !right-[-6px] z-50"
-                />
+                    style={{ top: '200px' }}
+                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !right-[-6px] z-50 transition-colors group/handle"
+                >
+                </Handle>
                 {selected && (
-                    <div className="absolute right-[-50px] top-[100px] -translate-y-1/2 flex items-center pl-1 animate-in fade-in duration-200 z-50">
-                        <span className="text-[14px] font-[500] text-[rgb(241,160,250)] leading-normal" style={{ fontFamily: '"DM Mono", monospace' }}>Text</span>
+                    <div className="absolute right-[-70px] top-[200px] -translate-y-1/2 flex items-center pl-2 animate-in fade-in duration-200 z-50">
+                        <span className="text-[14px] font-[500] text-[rgb(241,160,250)] leading-normal" style={{ fontFamily: '"DM Mono", monospace', color: 'rgb(241,160,250)' }}>Result</span>
                     </div>
                 )}
             </div>

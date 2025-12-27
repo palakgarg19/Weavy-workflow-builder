@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Handle, Position, useReactFlow } from 'reactflow';
+import { Handle, Position } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { MoreHorizontal, Trash2, Edit2, X, Plus, Asterisk } from 'lucide-react';
+import { MoreHorizontal, Asterisk } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -74,6 +74,7 @@ export default function TextNode({ id, data, selected }: { id: string, data: any
                 <Handle
                     type="source"
                     position={Position.Right}
+                    id="text-out"
                     isConnectableEnd={false}
                     className={cn(
                         "!w-3 !h-3 !border-4 !right-[-7px] z-50 transition-colors group/handle",
@@ -87,11 +88,10 @@ export default function TextNode({ id, data, selected }: { id: string, data: any
                     {data.validationError && (
                         <>
                             <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
-                                <Asterisk size={12} className="text-[rgb(232,85,85)] stroke-[4px]" />
+                                <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
                             </div>
-                            <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 px-2 py-1 bg-[#18181b] text-white text-[12px] font-medium rounded-[4px] whitespace-nowrap opacity-0 group-hover/handle:opacity-100 transition-opacity shadow-xl border border-[#27272a] pointer-events-none z-[100]">
-                                {data.validationError}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-[#18181b]"></div>
+                            <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-[rgb(241,160,250)] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap animate-in fade-in slide-in-from-right-2 z-50 pointer-events-none">
+                                Missing Output
                             </div>
                         </>
                     )}

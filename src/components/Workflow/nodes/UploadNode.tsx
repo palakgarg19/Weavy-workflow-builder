@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
+import { Handle, Position } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Handle, Position, useReactFlow } from 'reactflow';
-import { MoreHorizontal, Upload, Link, X } from 'lucide-react';
+import { MoreHorizontal, Upload, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -137,10 +137,12 @@ export default function UploadNode({ id, data, selected }: { id: string, data: a
                 <Handle
                     type="source"
                     position={Position.Right}
+                    id="image-out"
                     isConnectableEnd={false}
                     style={{ top: '200px' }}
-                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50"
-                />
+                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50 transition-colors group/handle"
+                >
+                </Handle>
                 {selected && (
                     <div className="absolute right-[-70px] top-[200px] -translate-y-1/2 flex items-center pl-2 animate-in fade-in duration-200 z-50">
                         <span className="text-[14px] font-[500] text-[rgb(110,221,179)] leading-normal" style={{ fontFamily: '"DM Mono", monospace', color: 'rgb(110,221,179)' }}>Image</span>

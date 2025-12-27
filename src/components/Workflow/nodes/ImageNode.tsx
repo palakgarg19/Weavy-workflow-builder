@@ -93,8 +93,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
                     }}
                 >
-                    {/* ... inner preview content remains same ... */}
-                    {/* 1. API Loading State OR Image Loading State: Show Loader Overlay */}
                     {(data.isLoading || (data.output && isImageLoading)) && (
                         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[200] bg-[#2e2e32]/80 backdrop-blur-sm">
                             <style>
@@ -111,7 +109,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         </div>
                     )}
 
-                    {/* 2. Error State */}
                     {data.error ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-10 bg-[#2e2e32]">
                             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex flex-col items-center gap-2 max-w-[80%]">
@@ -122,7 +119,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                             </div>
                         </div>
                     ) : data.output ? (
-                        /* 3. Success State: Render Image */
                         <div className="relative z-10 h-full w-full flex items-center justify-center bg-black/20">
                             <img
                                 src={data.output}
@@ -132,7 +128,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                     setImageSize({ width: naturalWidth, height: naturalHeight });
                                     setIsImageLoading(false);
                                 }}
-                                onError={() => setIsImageLoading(false)} /* Prevent infinite spinner on error */
+                                onError={() => setIsImageLoading(false)}
                                 className={cn(
                                     "w-full h-full object-contain transition-opacity duration-300",
                                     isImageLoading ? "opacity-0" : "opacity-100"
@@ -140,13 +136,12 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                             />
                         </div>
                     ) : (
-                        /* 4. Placeholder State */
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-[#71717a] z-10">
                         </div>
                     )}
                 </div>
 
-                {/* Footer - 8px margin from checkered area, 9px left margin */}
+                {/* Footer */}
                 <div className="mt-[15px] ml-[17px] flex items-center shrink-0 h-[36px]">
                     <button
                         onClick={handleAddImageInput}
@@ -206,11 +201,10 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     {data.validationError && (
                         <>
                             <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
-                                <Asterisk size={12} className="text-[rgb(232,85,85)] stroke-[4px]" />
+                                <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
                             </div>
-                            <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 px-2 py-1 bg-[#18181b] text-white text-[12px] font-medium rounded-[4px] whitespace-nowrap opacity-0 group-hover/handle:opacity-100 transition-opacity shadow-xl border border-[#27272a] pointer-events-none z-[100]">
-                                {data.validationError}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[4px] border-transparent border-t-[#18181b]"></div>
+                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(241,160,250)] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-50 pointer-events-none">
+                                Missing Connection
                             </div>
                         </>
                     )}
@@ -230,6 +224,8 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     </div>
                 )}
 
+                {/* Additional Handles - Repositioned */}
+                {/* Image Input Handle - Green for Images */}
                 {Array.from({ length: imageInputCount }).map((_, index) => {
                     const topPosition = 100 + (index * 40);
                     return (
@@ -240,8 +236,9 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                 id={`image-in-${index}`}
                                 isConnectableStart={false}
                                 style={{ top: `${topPosition}px` }}
-                                className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50"
-                            />
+                                className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50 transition-colors group/handle"
+                            >
+                            </Handle>
                             {selected && (
                                 <div
                                     className="absolute -translate-y-1/2 w-[100px] flex items-center justify-end pr-1 animate-in fade-in duration-200 z-50"
@@ -259,10 +256,11 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                 <Handle
                     type="source"
                     position={Position.Right}
-                    isConnectableEnd={false}
+                    id="image-out"
                     style={{ top: '200px' }}
-                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50"
-                />
+                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50 transition-colors group/handle"
+                >
+                </Handle>
                 {selected && (
                     <div className="absolute right-[-70px] top-[200px] -translate-y-1/2 flex items-center pl-2 animate-in fade-in duration-200 z-50">
                         <span className="text-[14px] font-[500] text-[rgb(110,221,179)] leading-normal" style={{ fontFamily: '"DM Mono", monospace', color: 'rgb(110,221,179)' }}>Result</span>
