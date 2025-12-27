@@ -9,6 +9,7 @@ import ReactFlow, {
   ConnectionMode,
   useReactFlow,
   getOutgoers,
+  MiniMap,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -267,6 +268,22 @@ function Flow() {
         selectionOnDrag={activeTool === 'select'}
       >
         <Background color="rgb(80, 80, 85)" gap={24} size={1.5} />
+        <MiniMap
+          style={{ height: 120 }}
+          zoomable
+          pannable
+          className="!bg-[#141414] !border !border-[#333] !rounded-lg !shadow-xl"
+          maskColor="rgba(0, 0, 0, 0.6)"
+          nodeColor={(node) => {
+            switch (node.type) {
+              case 'textNode': return 'rgb(241, 160, 250)';
+              case 'imageNode': return 'rgb(110, 221, 179)';
+              case 'uploadNode': return '#ffffff';
+              case 'llmNode': return '#a1a1aa';
+              default: return '#505055';
+            }
+          }}
+        />
 
         {/* Custom Bottom Toolbar (Floating Pill) */}
         <div
