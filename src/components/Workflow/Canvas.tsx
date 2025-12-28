@@ -45,38 +45,35 @@ function Flow() {
     addNode,
     undo,
     redo,
-    history
+    history,
+    setConnectionStart,
+    setConnectionError,
+    validateConnection: storeValidateConnection
   } = useWorkflowStore();
   const { zoomIn, zoomOut, fitView, zoomTo, getZoom } = useReactFlow();
 
-  // Check if undo/redo are available
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
-  // Update zoom level display
   const updateZoomLevel = useCallback(() => {
     try {
       const zoom = getZoom();
       setZoomLevel(Math.round(zoom * 100));
     } catch (e) {
-      // getZoom might not be available immediately
     }
   }, [getZoom]);
 
-  // Update zoom when React Flow is initialized and on any zoom change
   useEffect(() => {
     if (reactFlowInstance) {
       updateZoomLevel();
 
       // Listen to wheel events for pinch-to-zoom tracking
       const handleWheel = () => {
-        // Small delay to let React Flow update zoom first
         setTimeout(updateZoomLevel, 10);
       };
 
       const viewport = reactFlowInstance.getViewport?.();
       if (viewport) {
-        // Track any viewport changes
         const checkZoom = setInterval(updateZoomLevel, 100);
 
         // Also listen to wheel events
@@ -90,7 +87,6 @@ function Flow() {
     }
   }, [reactFlowInstance, updateZoomLevel]);
 
-  // Wrapper functions that update zoom display after operations
   const handleZoomIn = useCallback(() => {
     zoomIn();
     setTimeout(updateZoomLevel, 50);
@@ -111,7 +107,6 @@ function Flow() {
     setTimeout(updateZoomLevel, 50);
   }, [fitView, updateZoomLevel]);
 
-  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeElement = document.activeElement;
@@ -185,63 +180,28 @@ function Flow() {
     [reactFlowInstance, addNode]
   );
 
-  // Validate connection types - prevent incompatible connections and cycles
+  const onConnectStart = useCallback((_: any, { nodeId, handleId, handleType }: any) => {
+    if (nodeId && handleId && handleType) {
+      setConnectionStart({ nodeId, handleId, handleType });
+    }
+  }, [setConnectionStart]);
+
+  const onConnectEnd = useCallback(() => {
+    setConnectionStart(null);
+    setConnectionError(null);
+  }, [setConnectionStart, setConnectionError]);
+
   const isValidConnection = useCallback(
     (connection: any) => {
-      // Prevent self-connections
-      if (connection.source === connection.target) {
-        return false;
-      }
-
-      const sourceNode = nodes.find(n => n.id === connection.source);
-      const targetNode = nodes.find(n => n.id === connection.target);
-
-      if (!sourceNode || !targetNode) {
-        return false;
-      }
-
-      // 1. Cycle Detection
-      // Check if targetNode can reach sourceNode. If so, adding source->target would create a cycle.
-      const hasCycle = (node: Node, visited = new Set<string>()): boolean => {
-        if (visited.has(node.id)) return false;
-        visited.add(node.id);
-
-        const outgoers = getOutgoers(node, nodes, edges);
-        if (outgoers.some(outgoer => outgoer.id === connection.source)) {
-          return true;
-        }
-        return outgoers.some(outgoer => hasCycle(outgoer, visited));
-      };
-
-      if (hasCycle(targetNode)) {
-        return false;
-      }
-
-      // 2. Type Compatibility & Handle Validation
-      // Determine source handle type
-      const isSourceImage = sourceNode.type === 'uploadNode' || sourceNode.type === 'imageNode';
-      const isSourceText = sourceNode.type === 'textNode' || sourceNode.type === 'llmNode';
-
-      // Determine target handle type based on handle ID
-      const targetHandleId = connection.targetHandle || '';
-
-      // If it's an output handle being targeted, it's NOT an input handle
-      if (targetHandleId.endsWith('-out')) {
-        return false;
-      }
-
-      const isTargetImageHandle = targetHandleId.startsWith('image-in');
-      const isTargetTextHandle = targetHandleId === 'prompt-in' ||
-        targetHandleId === 'system-prompt-in' ||
-        targetHandleId === 'text-in';
-
-      // Allow connection only if types match
-      if (isSourceImage && isTargetImageHandle) return true;
-      if (isSourceText && isTargetTextHandle) return true;
-
-      return false;
+      const result = storeValidateConnection(
+        connection.source,
+        connection.sourceHandle || '',
+        connection.target,
+        connection.targetHandle || ''
+      );
+      return result.isValid;
     },
-    [nodes, edges]
+    [storeValidateConnection]
   );
 
   return (
@@ -252,6 +212,8 @@ function Flow() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
         isValidConnection={isValidConnection}
         connectionLineComponent={CustomConnectionLine}
         nodeTypes={nodeTypes}
@@ -285,7 +247,6 @@ function Flow() {
           }}
         />
 
-        {/* Custom Bottom Toolbar (Floating Pill) */}
         <div
           className="fixed bg-[rgb(33,33,38)] rounded-[8px] flex items-center z-[100]"
           style={{
@@ -295,7 +256,6 @@ function Flow() {
             bottom: '16px'
           }}
         >
-          {/* Select Tool */}
           <button
             onClick={() => setActiveTool('select')}
             className={cn(
@@ -310,7 +270,6 @@ function Flow() {
             <MousePointer2 size={20} strokeWidth={1} className="shrink-0" />
           </button>
 
-          {/* Pan Tool */}
           <button
             onClick={() => setActiveTool('pan')}
             className={cn(
@@ -325,7 +284,6 @@ function Flow() {
             <Hand size={20} strokeWidth={1} className="shrink-0" />
           </button>
 
-          {/* Vertical Divider */}
           <div className="ml-[9px] w-[1px] h-[25px] bg-[rgb(53,53,57)]"></div>
 
           {/* Undo */}
@@ -344,7 +302,6 @@ function Flow() {
             <Undo2 size={24} strokeWidth={1.25} className="shrink-0" />
           </button>
 
-          {/* Redo */}
           <button
             onClick={redo}
             disabled={!canRedo}
@@ -360,7 +317,6 @@ function Flow() {
             <Redo2 size={24} strokeWidth={1.25} className="shrink-0" />
           </button>
 
-          {/* Vertical Divider */}
           <div className="ml-[9px] w-[1px] h-[25px] bg-[rgb(53,53,57)]"></div>
 
           {/* Zoom Dropdown */}

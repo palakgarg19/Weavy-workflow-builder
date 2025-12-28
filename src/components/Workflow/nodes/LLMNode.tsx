@@ -11,24 +11,34 @@ const AVAILABLE_MODELS = [
     { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)', disabled: false },
 ];
 
-/**
- * LLMNode - Processes text and image inputs through Google Gemini models.
- */
 export default function LLMNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
-    const { updateNodeData, runNode, onNodesChange } = useWorkflowStore();
+    const {
+        updateNodeData,
+        runNode,
+        onNodesChange,
+        connectionStart,
+        connectionError,
+        setConnectionError,
+        validateConnection
+    } = useWorkflowStore();
     const updateNodeInternals = useUpdateNodeInternals();
 
-    // UI State
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [showModelSubmenu, setShowModelSubmenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // --- Handlers ---
+    useEffect(() => {
+        if (data.error === 'Required input is missing.' || data.validationError === 'Required input is missing.') {
+            const timer = setTimeout(() => {
+                updateNodeData(id, { error: null, validationError: null });
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [data.error, data.validationError, id, updateNodeData]);
 
-    // DEFAULT: If undefined, start with 1 image handle.
+
     const imageInputCount = data.imageInputCount !== undefined ? data.imageInputCount : 1;
 
-    // Update node internals when imageInputCount changes so React Flow recognizes new handles
     useEffect(() => {
         updateNodeInternals(id);
     }, [imageInputCount, id, updateNodeInternals]);
@@ -37,6 +47,24 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
         if (imageInputCount < 10) {
             updateNodeData(id, { imageInputCount: imageInputCount + 1 });
         }
+    };
+
+    const onHandleMouseEnter = (handleId: string) => {
+        if (connectionStart && connectionStart.nodeId !== id) {
+            const result = validateConnection(
+                connectionStart.nodeId,
+                connectionStart.handleId,
+                id,
+                handleId
+            );
+            if (!result.isValid && result.message) {
+                setConnectionError({ nodeId: id, handleId, message: result.message });
+            }
+        }
+    };
+
+    const onHandleMouseLeave = () => {
+        setConnectionError(null);
     };
 
     const currentModel = data.model || 'gemini-2.5-flash';
@@ -99,7 +127,7 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                                         fontFamily: '"DM Sans", system-ui, -apple-system, Arial, sans-serif'
                                     }}
                                 >
-                                    {/* Select Model */}
+                                    {/* Model Selection */}
                                     <div
                                         className="relative w-full px-[3px]"
                                     >
@@ -196,7 +224,7 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
 
                     <div className="w-full h-full p-[16px] flex flex-col flex-1 box-border overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                         {/* Error, Output, or Placeholder display */}
-                        {data.error ? (
+                        {data.error && data.error !== 'Required input is missing.' ? (
                             <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
                                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex flex-col items-center gap-2">
                                     <span className="text-red-400 text-sm font-medium">Error</span>
@@ -217,7 +245,6 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     </div>
                 </div>
 
-                {/* Action Bar */}
                 <div className="mt-[15px] ml-[17px] mb-[24px] flex items-center shrink-0 h-[36px]">
                     <button
                         onClick={handleAddImageInput}
@@ -258,7 +285,7 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     </button>
                 </div>
 
-                {/* Handles & Validation UI */}
+                {/* Handles */}
                 <Handle
                     type="target"
                     position={Position.Left}
@@ -271,16 +298,23 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
                         data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
                     )}
+                    onMouseEnter={() => onHandleMouseEnter('prompt-in')}
+                    onMouseLeave={onHandleMouseLeave}
                 >
-                    {data.validationError && (
+                    {(data.validationError || data.error === 'Required input is missing.') && (
                         <>
                             <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
                                 <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
                             </div>
-                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(241,160,250)] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-50 pointer-events-none">
-                                Missing Connection
+                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                                Required input is missing.
                             </div>
                         </>
+                    )}
+                    {connectionError?.nodeId === id && connectionError?.handleId === 'prompt-in' && (
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                            {connectionError.message}
+                        </div>
                     )}
                 </Handle>
 
@@ -305,7 +339,14 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     isConnectableStart={false}
                     style={{ top: '100px' }}
                     className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !left-[-6px] z-50 transition-colors group/handle"
+                    onMouseEnter={() => onHandleMouseEnter('system-prompt-in')}
+                    onMouseLeave={onHandleMouseLeave}
                 >
+                    {connectionError?.nodeId === id && connectionError?.handleId === 'system-prompt-in' && (
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                            {connectionError.message}
+                        </div>
+                    )}
                 </Handle>
 
                 {selected && (
@@ -328,7 +369,14 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                                 isConnectableStart={false}
                                 style={{ top: `${topPosition}px` }}
                                 className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50 transition-colors group/handle"
+                                onMouseEnter={() => onHandleMouseEnter(`image-in-${index}`)}
+                                onMouseLeave={onHandleMouseLeave}
                             >
+                                {connectionError?.nodeId === id && connectionError?.handleId === `image-in-${index}` && (
+                                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                                        {connectionError.message}
+                                    </div>
+                                )}
                             </Handle>
                             {selected && (
                                 <div

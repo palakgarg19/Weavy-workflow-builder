@@ -11,9 +11,9 @@ import {
   OnConnect,
   applyNodeChanges,
   applyEdgeChanges,
+  getOutgoers,
 } from 'reactflow';
 
-// History Types
 type HistoryState = {
   nodes: Node[];
   edges: Edge[];
@@ -26,7 +26,6 @@ type WorkflowState = {
   currentWorkflowId: string | null;
   workflows: Array<{ id: string, name: string }>;
   isSaving: boolean;
-  // History
   history: {
     past: HistoryState[];
     future: HistoryState[];
@@ -39,21 +38,23 @@ type WorkflowState = {
   updateNodeData: (id: string, data: any) => void;
   runNode: (nodeId: string) => Promise<void>;
 
-  // Persistence
   fetchWorkflows: () => Promise<void>;
   saveWorkflow: () => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
   createNewWorkflow: () => void;
 
-  // History Actions
   undo: () => void;
   redo: () => void;
   setWorkflowName: (name: string) => void;
-  // Local JSON Persistence
   exportWorkflow: () => void;
   importWorkflow: (json: any) => { success: boolean, error?: string };
-  // Helper to push history
   takeSnapshot: () => void;
+
+  connectionStart: { nodeId: string, handleId: string, handleType: string } | null;
+  connectionError: { nodeId: string, handleId: string, message: string } | null;
+  setConnectionStart: (start: { nodeId: string, handleId: string, handleType: string } | null) => void;
+  setConnectionError: (error: { nodeId: string, handleId: string, message: string } | null) => void;
+  validateConnection: (sourceId: string, sourceHandle: string, targetId: string, targetHandle: string) => { isValid: boolean, message?: string };
 };
 
 // Max history length
@@ -76,7 +77,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   takeSnapshot: () => {
     const { nodes, edges, history } = get();
-    // Push current state to past
     const newPast = [...history.past, { nodes, edges }];
     if (newPast.length > MAX_HISTORY) newPast.shift();
 
@@ -86,6 +86,64 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         future: [],
       }
     });
+  },
+
+  connectionStart: null,
+  connectionError: null,
+
+  setConnectionStart: (start) => set({ connectionStart: start }),
+  setConnectionError: (error) => set({ connectionError: error }),
+
+  validateConnection: (sourceId, sourceHandle, targetId, targetHandle) => {
+    const { nodes, edges } = get();
+
+    // 1. Prevent self-connections
+    if (sourceId === targetId) {
+      return { isValid: false, message: "Circular connections are not allowed" };
+    }
+
+    const sourceNode = nodes.find(n => n.id === sourceId);
+    const targetNode = nodes.find(n => n.id === targetId);
+
+    if (!sourceNode || !targetNode) {
+      return { isValid: false };
+    }
+
+    // 2. Cycle Detection
+    const hasCycle = (node: Node, visited = new Set<string>()): boolean => {
+      if (visited.has(node.id)) return false;
+      visited.add(node.id);
+
+      const outgoers = getOutgoers(node, nodes, edges);
+      if (outgoers.some(outgoer => outgoer.id === sourceId)) {
+        return true;
+      }
+      return outgoers.some(outgoer => hasCycle(outgoer, visited));
+    };
+
+    if (hasCycle(targetNode)) {
+      return { isValid: false, message: "Circular connections are not allowed" };
+    }
+
+    // 3. Type Compatibility
+    const isSourceImage = sourceNode.type === 'uploadNode' || sourceNode.type === 'imageNode';
+    const isSourceText = sourceNode.type === 'textNode' || sourceNode.type === 'llmNode';
+
+    if (targetHandle.endsWith('-out')) {
+      return { isValid: false, message: "Wrong input type" };
+    }
+
+    const isTargetImageHandle = targetHandle.indexOf('image-in') !== -1;
+    const isTargetTextHandle = targetHandle === 'prompt-in' ||
+      targetHandle === 'system-prompt-in' ||
+      targetHandle === 'text-in';
+
+    if (isSourceImage && !isTargetImageHandle) return { isValid: false, message: "Wrong input type" };
+    if (isSourceText && !isTargetTextHandle) return { isValid: false, message: "Wrong input type" };
+    if (!isSourceImage && isTargetImageHandle) return { isValid: false, message: "Wrong input type" };
+    if (!isSourceText && isTargetTextHandle) return { isValid: false, message: "Wrong input type" };
+
+    return { isValid: true };
   },
 
   undo: () => {
@@ -149,7 +207,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       }, 100); // 100ms debounce
     }
 
-    // Apply the changes
     set({
       nodes: applyNodeChanges(changes, currentNodes),
     });
@@ -175,16 +232,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const { nodes, edges } = get();
     const sourceNode = nodes.find(n => n.id === connection.source);
 
-    // Default purple for text/LLM, Teal for Image/Upload
+    // Use Teal for images, Purple for text
     let stroke = 'rgb(241,160,250)';
     if (sourceNode?.type === 'imageNode' || sourceNode?.type === 'uploadNode') {
       stroke = 'rgb(110,221,179)';
     }
 
-    // IMPORTANT: Remove any existing edge connected to the same target handle
-    // This ensures only ONE incoming edge per input handle at a time
+    // Enforce 1:1 connection mapping for inputs
     const filteredEdges = edges.filter(edge => {
-      // Keep edges that are NOT connected to the same target node + target handle
       return !(edge.target === connection.target && edge.targetHandle === connection.targetHandle);
     });
 
@@ -203,9 +258,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   },
 
   updateNodeData: (id: string, data: any) => {
-    // This fires on every key stroke for text. 
-    // We should NOT snapshot here automatically or we flood the stack.
-    // Rely on onBlur or explicit snapshots from components for data changes.
+    // Avoid store pollution on every keystroke
     set({
       nodes: get().nodes.map((node) => {
         if (node.id === id) {
@@ -221,13 +274,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const targetNode = nodes.find((n) => n.id === nodeId);
     if (!targetNode) return;
 
-    // 1. Set Loading State & Clear previous errors
     updateNodeData(nodeId, { isLoading: true, output: '', error: null, validationError: null });
 
     try {
-      // 2. Gather Inputs (Text and Images) from previous nodes
       const incomingEdges = edges.filter((edge) => edge.target === nodeId);
-
       let textInput = "";
       let systemTextInput = "";
       const imageInputs: string[] = [];
@@ -243,15 +293,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             systemTextInput += `${sourceNode.data.output} `;
           }
         } else {
-          // Collect Text
           if (sourceNode.type === 'textNode' && sourceNode.data.text) {
             textInput += `${sourceNode.data.text} `;
           }
-          // Collect Images (from UploadNode or previous ImageNode)
           if (sourceNode.type === 'uploadNode' && sourceNode.data.image) {
             imageInputs.push(sourceNode.data.image);
           }
-          // Handle chained outputs
           if (sourceNode.data.output) {
             // Check if output looks like a URL or Data URI (Image)
             if (sourceNode.data.output.startsWith('http') || sourceNode.data.output.startsWith('data:')) {
@@ -287,7 +334,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       if (!userPrompt && imageInputs.length === 0) {
         updateNodeData(nodeId, {
           isLoading: false,
-          validationError: 'Required input'
+          validationError: 'Required input is missing.'
         });
         return;
       }
@@ -303,7 +350,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           }
 
           if (!userPrompt) {
-            throw new Error("Text prompt required for FLUX.1-schnell");
+            throw new Error("Required input is missing.");
           }
 
           try {
@@ -322,7 +369,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
               throw new Error(errorData.error || `HTTP ${response.status}`);
             }
 
-            // Response is an image blob
             const blob = await response.blob();
             const imageUrl = URL.createObjectURL(blob);
 
@@ -333,7 +379,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             });
             return;
           } catch (error: any) {
-            // Enhanced error handling for HuggingFace API
             if (error.message?.includes('429') || error.message?.includes('quota')) {
               throw new Error("HuggingFace quota exceeded. Please check your API limits or try again later.");
             } else if (error.message?.includes('401') || error.message?.includes('token')) {
@@ -343,15 +388,14 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           }
         }
 
-        // Route 2: Instruct-Pix2Pix (Image Editing) - DEACTIVATED
+        // Route 2: Instruct-Pix2Pix (Image-to-Image Editing)
         if (selectedModel === 'instruct-pix2pix') {
-          throw new Error("Instruct-Pix2Pix is currently deactivated for maintenance.");
+          throw new Error("Instruct-Pix2Pix is only available to premium users. Please upgrade your plan.");
         }
 
-        // Route 2: Pollinations (Text-to-Image or Image Description)
+        // Route 3: Pollinations (Text-Image-to-Image using Gemini)
         let finalPromptForGen = textInput;
 
-        // Step A: If we have input images, ask Gemini to describe them first
         if (imageInputs.length > 0) {
           try {
             const isMultiple = imageInputs.length > 1;
@@ -379,10 +423,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         }
 
         if (!finalPromptForGen.trim()) {
-          throw new Error("Could not generate a prompt. Please provide a text prompt or ensure the input image can be described.");
+          throw new Error("Required input is missing.");
         }
 
-        // Step C: Send to Pollinations (Free Image Gen)
         const randomSeed = Math.floor(Math.random() * 999999);
         const cleanPrompt = encodeURIComponent(finalPromptForGen.slice(0, 10000));
         const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&private=true&seed=${randomSeed}&width=1024&height=1024`;
@@ -402,6 +445,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         const systemInstruction = activeSystemPrompt || targetNode.data.systemPrompt || undefined;
         const userPrompt = textInput.trim();
 
+        if (!userPrompt) {
+          throw new Error("Required input is missing.");
+        }
+
         const response = await fetch('/api/gemini/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -416,7 +463,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         const result = await response.json();
 
         if (result.error) {
-          // Handle the Quota error specifically as discussed before
+          // Handle the Quota error
           if (result.error.includes('429')) throw new Error("Quota exceeded. Please check billing or try a different model.");
           throw new Error(result.error);
         }
@@ -531,14 +578,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       if (!Array.isArray(json.nodes)) throw new Error("Invalid workflow: Missing nodes");
       if (!Array.isArray(json.edges)) throw new Error("Invalid workflow: Missing edges");
 
-      // Take snapshot before overwriting
       get().takeSnapshot();
 
       set({
         workflowName: json.name || "Imported Workflow",
         nodes: json.nodes,
         edges: json.edges,
-        currentWorkflowId: null, // Reset ID as this is a local file
+        currentWorkflowId: null,
         history: { past: [], future: [] }
       });
 

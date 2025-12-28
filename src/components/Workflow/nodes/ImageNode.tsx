@@ -1,14 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
-import { Plus, MoveRight, Loader2, MoreHorizontal, Asterisk, Trash2, ChevronRight, Pencil, ChevronDown } from 'lucide-react';
+import { Plus, MoveRight, Loader2, MoreHorizontal, Trash2, ChevronRight, Pencil, ChevronDown } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 
-/**
- * ImageNode - Generates images based on text prompts and optional input images.
- */
 export default function ImageNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
-    const { updateNodeData, runNode, onNodesChange } = useWorkflowStore();
+    const {
+        updateNodeData,
+        runNode,
+        onNodesChange,
+        connectionStart,
+        connectionError,
+        setConnectionError,
+        validateConnection
+    } = useWorkflowStore();
     const updateNodeInternals = useUpdateNodeInternals();
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [imageSize, setImageSize] = useState<{ width: number, height: number } | null>(null);
@@ -16,7 +21,15 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
     const [showModelSubmenu, setShowModelSubmenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Reset image loading state when output changes to a new URL
+    useEffect(() => {
+        if (data.error === 'Required input is missing.' || data.validationError === 'Required input is missing.') {
+            const timer = setTimeout(() => {
+                updateNodeData(id, { error: null, validationError: null });
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [data.error, data.validationError, id, updateNodeData]);
+
     React.useEffect(() => {
         if (data.output) {
             setIsImageLoading(true);
@@ -28,7 +41,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
     const imageInputCount = data.imageInputCount || 1;
     const selectedModel = data.selectedModel || 'pollinations';
 
-    // Update node internals when imageInputCount changes so React Flow recognizes new handles
     useEffect(() => {
         updateNodeInternals(id);
     }, [imageInputCount, id, updateNodeInternals]);
@@ -37,6 +49,24 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
         if (imageInputCount < 10) {
             updateNodeData(id, { imageInputCount: imageInputCount + 1 });
         }
+    };
+
+    const onHandleMouseEnter = (handleId: string) => {
+        if (connectionStart && connectionStart.nodeId !== id) {
+            const result = validateConnection(
+                connectionStart.nodeId,
+                connectionStart.handleId,
+                id,
+                handleId
+            );
+            if (!result.isValid && result.message) {
+                setConnectionError({ nodeId: id, handleId, message: result.message });
+            }
+        }
+    };
+
+    const onHandleMouseLeave = () => {
+        setConnectionError(null);
     };
 
     return (
@@ -97,7 +127,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                         fontFamily: '"DM Sans", system-ui, -apple-system, Arial, sans-serif'
                                     }}
                                 >
-                                    {/* Select Model */}
+                                    {/* Model Selection */}
                                     <div
                                         className="w-full px-[3px] relative"
                                     >
@@ -165,7 +195,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                         <button
                                             onClick={() => {
                                                 setIsMenuOpen(false);
-                                                // Small timeout
                                                 setTimeout(() => {
                                                     inputRef.current?.focus();
                                                     inputRef.current?.select();
@@ -198,8 +227,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         )}
                     </div>
                 </div>
-
-                {/* Preview with checkerboard background */}
                 <div
                     className="rounded-none overflow-hidden flex flex-col mx-auto mt-[11px] shrink-0 relative group/preview"
                     style={{
@@ -234,7 +261,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         </div>
                     )}
 
-                    {data.error ? (
+                    {data.error && data.error !== 'Required input is missing.' ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-10 bg-[#2e2e32]">
                             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex flex-col items-center gap-2 max-w-[80%]">
                                 <span className="text-red-400 text-sm font-medium">Error</span>
@@ -266,7 +293,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     )}
                 </div>
 
-                {/* Footer */}
                 <div className="mt-[15px] ml-[17px] flex items-center shrink-0 h-[36px]">
                     {selectedModel !== 'instruct-pix2pix' && selectedModel !== 'flux-schnell' && (
                         <button
@@ -324,16 +350,23 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
                         data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
                     )}
+                    onMouseEnter={() => onHandleMouseEnter('text-in')}
+                    onMouseLeave={onHandleMouseLeave}
                 >
-                    {data.validationError && (
+                    {(data.validationError || data.error === 'Required input is missing.') && (
                         <>
                             <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
                                 <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
                             </div>
-                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(241,160,250)] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-50 pointer-events-none">
-                                Missing Connection
+                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                                Required input is missing.
                             </div>
                         </>
+                    )}
+                    {connectionError?.nodeId === id && connectionError?.handleId === 'text-in' && (
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                            {connectionError.message}
+                        </div>
                     )}
                 </Handle>
 
@@ -351,8 +384,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     </div>
                 )}
 
-                {/* Additional Handles - Repositioned */}
-                {/* Image Input Handle - Green for Images */}
+                {/* Additional Input Handles */}
                 {selectedModel !== 'flux-schnell' && Array.from({ length: imageInputCount }).map((_, index) => {
                     const topPosition = 100 + (index * 40);
                     return (
@@ -364,7 +396,14 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                 isConnectableStart={false}
                                 style={{ top: `${topPosition}px` }}
                                 className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50 transition-colors group/handle"
+                                onMouseEnter={() => onHandleMouseEnter(`image-in-${index}`)}
+                                onMouseLeave={onHandleMouseLeave}
                             >
+                                {connectionError?.nodeId === id && connectionError?.handleId === `image-in-${index}` && (
+                                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
+                                        {connectionError.message}
+                                    </div>
+                                )}
                             </Handle>
                             {selected && (
                                 <div
@@ -393,7 +432,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         <span className="text-[14px] font-[500] text-[rgb(110,221,179)] leading-normal" style={{ fontFamily: '"DM Mono", monospace', color: 'rgb(110,221,179)' }}>Result</span>
                     </div>
                 )}
-            </div>
+            </div >
         </>
     );
 }

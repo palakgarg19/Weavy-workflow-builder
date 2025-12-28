@@ -19,16 +19,15 @@ export function CustomConnectionLine({
         targetPosition: toPosition,
     });
 
-    // Determine color based on source node type
+    // Color logic based on source
     let strokeColor = 'rgb(241,160,250)'; // Default purple for text
 
     if (fromNode?.type === 'uploadNode' || fromNode?.type === 'imageNode') {
-        strokeColor = 'rgb(110,221,179)'; // Teal for image
+        strokeColor = 'rgb(110,221,179)';
     }
 
-    // If connection is invalid, show red
     if (connectionStatus === 'invalid') {
-        strokeColor = 'rgb(232,85,85)'; // Red for invalid
+        strokeColor = 'rgb(232,85,85)';
     }
 
     return (

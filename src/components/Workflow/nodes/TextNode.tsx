@@ -4,16 +4,12 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { MoreHorizontal, Asterisk, Trash2, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * TextNode - A React Flow node for manual text/prompt entry.
- */
 export default function TextNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
     const { updateNodeData, onNodesChange } = useWorkflowStore();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const labelInputRef = useRef<HTMLInputElement>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // Auto-resize logic
     useEffect(() => {
         const textarea = textareaRef.current;
         if (textarea) {
@@ -72,12 +68,10 @@ export default function TextNode({ id, data, selected }: { id: string, data: any
                                         fontFamily: '"DM Sans", system-ui, -apple-system, Arial, sans-serif'
                                     }}
                                 >
-                                    {/* Rename */}
                                     <div className="w-full px-[3px]">
                                         <button
                                             onClick={() => {
                                                 setIsMenuOpen(false);
-                                                // Small timeout
                                                 setTimeout(() => {
                                                     labelInputRef.current?.focus();
                                                     labelInputRef.current?.select();
@@ -91,7 +85,6 @@ export default function TextNode({ id, data, selected }: { id: string, data: any
                                         </button>
                                     </div>
 
-                                    {/* Delete */}
                                     <div className="w-full px-[3px]">
                                         <button
                                             onClick={() => {
@@ -127,39 +120,19 @@ export default function TextNode({ id, data, selected }: { id: string, data: any
                     </div>
                 </div>
 
-                {/* Handle */}
                 <Handle
                     type="source"
                     position={Position.Right}
                     id="text-out"
                     isConnectableEnd={false}
-                    className={cn(
-                        "!w-3 !h-3 !border-4 !right-[-7px] z-50 transition-colors group/handle",
-                        data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
-                    )}
-                    style={{
-                        borderColor: data.validationError ? 'rgb(241,160,250)' : 'rgb(241,160,250)',
-                        backgroundColor: data.validationError ? 'rgb(241,160,250)' : '#2b2b2f'
-                    }}
-                >
-                    {data.validationError && (
-                        <>
-                            <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
-                                <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
-                            </div>
-                            <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-[rgb(241,160,250)] text-black text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap animate-in fade-in slide-in-from-right-2 z-50 pointer-events-none">
-                                Missing Output
-                            </div>
-                        </>
-                    )}
-                </Handle>
-                {(selected || data.validationError) && (
+                    className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !right-[-7px] z-50 transition-colors group/handle"
+                />
+                {selected && (
                     <div className="absolute right-[-70px] top-[50%] -translate-y-1/2 flex items-center pl-1 animate-in fade-in duration-200 z-50">
                         <span
-                            className="text-[14px] font-[500] leading-normal transition-colors"
+                            className="text-[14px] font-[500] leading-normal text-[rgb(241,160,250)] transition-colors"
                             style={{
                                 fontFamily: '"DM Mono", monospace',
-                                color: data.validationError ? 'rgb(232,85,85)' : 'rgb(241,160,250)'
                             }}
                         >
                             Prompt

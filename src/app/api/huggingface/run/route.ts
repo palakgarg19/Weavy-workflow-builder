@@ -7,7 +7,7 @@ const HuggingFaceSchema = z.object({
     model: z.string(),
     prompt: z.string(),
     task: z.enum(["text-to-image", "image-to-image"]).default("text-to-image"),
-    imageInput: z.string().optional(), // Base64 or URL for image-to-image
+    imageInput: z.string().optional(),
 });
 
 // Initialize HuggingFace Client
@@ -27,16 +27,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const { model, prompt, task, imageInput } = parseResult.data;
+        const { model, prompt, task } = parseResult.data;
 
-        // Route based on task type
         if (task === "text-to-image") {
             const blob = await hf.textToImage({
                 model,
                 inputs: prompt,
             });
 
-            // Convert Blob to Buffer for Next.js response
+            // Convert Blob to Buffer
             const arrayBuffer = await (blob as any).arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
 
@@ -48,7 +47,6 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // image-to-image not implemented yet, not available in HuggingFace's free tier.
         return NextResponse.json(
             { error: "Image-to-image not supported yet" },
             { status: 400 }
