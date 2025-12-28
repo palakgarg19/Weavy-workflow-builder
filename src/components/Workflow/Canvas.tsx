@@ -10,7 +10,7 @@ import ReactFlow, {
   MiniMap,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { useWorkflowStore, WorkflowNode } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 import TextNode from './nodes/TextNode';
 import ImageNode from './nodes/ImageNode';
@@ -62,46 +62,28 @@ function Flow() {
   useEffect(() => {
     if (reactFlowInstance) {
       updateZoomLevel();
-
-      // Listen to wheel events for pinch-to-zoom tracking
-      const handleWheel = () => {
-        setTimeout(updateZoomLevel, 10);
-      };
-
-      const viewport = reactFlowInstance.getViewport?.();
-      if (viewport) {
-        const checkZoom = setInterval(updateZoomLevel, 100);
-
-        // Also listen to wheel events
-        window.addEventListener('wheel', handleWheel, { passive: true });
-
-        return () => {
-          clearInterval(checkZoom);
-          window.removeEventListener('wheel', handleWheel);
-        };
-      }
     }
   }, [reactFlowInstance, updateZoomLevel]);
 
+  const onMove = useCallback(() => {
+    updateZoomLevel();
+  }, [updateZoomLevel]);
+
   const handleZoomIn = useCallback(() => {
     zoomIn();
-    setTimeout(updateZoomLevel, 50);
-  }, [zoomIn, updateZoomLevel]);
+  }, [zoomIn]);
 
   const handleZoomOut = useCallback(() => {
     zoomOut();
-    setTimeout(updateZoomLevel, 50);
-  }, [zoomOut, updateZoomLevel]);
+  }, [zoomOut]);
 
   const handleZoomTo = useCallback((level: number) => {
     zoomTo(level);
-    setTimeout(updateZoomLevel, 50);
-  }, [zoomTo, updateZoomLevel]);
+  }, [zoomTo]);
 
   const handleFitView = useCallback(() => {
     fitView();
-    setTimeout(updateZoomLevel, 50);
-  }, [fitView, updateZoomLevel]);
+  }, [fitView]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -162,14 +144,14 @@ function Flow() {
       else if (type === 'uploadNode') label = 'Upload';
       else if (type === 'llmNode') label = 'Any LLM';
 
-      const newNode: Node = {
+      const newNode: WorkflowNode = {
         id: generateId(),
-        type,
+        type: type as any, // Cast because drop type is string
         position,
         data: {
           label,
           ...(type === 'textNode' ? { text: 'Hipster Sisyphus, lime dots overall suit, pushing a huge round rock up a hill. The rock is sprayed with the text "default prompt", bright grey background extreme side long shot, cinematic, fashion style, side view' } : {})
-        },
+        } as any,
       };
       addNode(newNode);
     },
@@ -214,6 +196,7 @@ function Flow() {
         connectionLineComponent={CustomConnectionLine}
         nodeTypes={nodeTypes}
         onInit={setReactFlowInstance}
+        onMove={onMove}
         onDrop={onDrop}
         onDragOver={onDragOver}
         connectionMode={ConnectionMode.Loose}

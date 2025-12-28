@@ -14,13 +14,57 @@ import {
   getOutgoers,
 } from 'reactflow';
 
+// --- Node Data Types ---
+
+export interface BaseNodeData {
+  label?: string;
+  isLoading?: boolean;
+  error?: string | null;
+  validationError?: string | null;
+  output?: string | null;
+  activeSystemPrompt?: string; // Propagated system prompt
+}
+
+export interface TextNodeData extends BaseNodeData {
+  text?: string;
+}
+
+export interface UploadNodeData extends BaseNodeData {
+  image?: string | null;
+  uploadError?: string | null;
+}
+
+export interface ImageNodeData extends BaseNodeData {
+  selectedModel?: 'pollinations' | 'flux-schnell' | 'instruct-pix2pix';
+  generatedDescription?: string;
+}
+
+export interface LLMNodeData extends BaseNodeData {
+  imageInputCount?: number;
+  model?: string;
+  systemPrompt?: string;
+}
+
+export type WorkflowNodeData = TextNodeData | UploadNodeData | ImageNodeData | LLMNodeData;
+
+// --- Discriminated Union for Nodes ---
+
+export type TextNode = Node<TextNodeData, 'textNode'>;
+export type UploadNode = Node<UploadNodeData, 'uploadNode'>;
+export type ImageNode = Node<ImageNodeData, 'imageNode'>;
+export type LLMNode = Node<LLMNodeData, 'llmNode'>;
+
+export type WorkflowNode = TextNode | UploadNode | ImageNode | LLMNode;
+
+// --- Store Types ---
+
 type HistoryState = {
-  nodes: Node[];
+  nodes: WorkflowNode[];
   edges: Edge[];
 };
 
 type WorkflowState = {
-  nodes: Node[];
+  nodes: WorkflowNode[];
   edges: Edge[];
   workflowName: string;
   currentWorkflowId: string | null;
@@ -34,8 +78,8 @@ type WorkflowState = {
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
-  addNode: (node: Node) => void;
-  updateNodeData: (id: string, data: any) => void;
+  addNode: (node: WorkflowNode) => void;
+  updateNodeData: <T extends WorkflowNodeData>(id: string, data: Partial<T>) => void;
   runNode: (nodeId: string) => Promise<void>;
 
   fetchWorkflows: () => Promise<void>;
@@ -186,17 +230,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   onNodesChange: (changes: NodeChange[]) => {
     const currentNodes = get().nodes;
-
-    // Check what type of changes we have
     const hasRemove = changes.some(c => c.type === 'remove');
-    const hasDragEnd = changes.some(c => c.type === 'position' && c.dragging === false);
+    const hasDragEnd = changes.some(c => c.type === 'position' && !c.dragging);
 
-    // Take snapshot for remove immediately
     if (hasRemove) {
       get().takeSnapshot();
     }
 
-    // Debounce drag end snapshots to avoid duplicates
     if (hasDragEnd) {
       if (dragEndTimer) {
         clearTimeout(dragEndTimer);
@@ -204,31 +244,26 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       dragEndTimer = setTimeout(() => {
         get().takeSnapshot();
         dragEndTimer = null;
-      }, 100); // 100ms debounce
+      }, 100);
     }
 
     set({
-      nodes: applyNodeChanges(changes, currentNodes),
+      nodes: applyNodeChanges(changes, currentNodes) as WorkflowNode[],
     });
   },
 
   onEdgesChange: (changes: EdgeChange[]) => {
-    const currentEdges = get().edges;
     const hasRemove = changes.some(c => c.type === 'remove');
-
     if (hasRemove) {
       get().takeSnapshot();
     }
-
     set({
-      edges: applyEdgeChanges(changes, currentEdges),
+      edges: applyEdgeChanges(changes, get().edges),
     });
   },
 
   onConnect: (connection: Connection) => {
-    // Take snapshot before adding edge
     get().takeSnapshot();
-
     const { nodes, edges } = get();
     const sourceNode = nodes.find(n => n.id === connection.source);
 
@@ -244,25 +279,23 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
 
     set({
-      edges: addEdge({ ...connection, style: { stroke, strokeWidth: 3 } }, filteredEdges),
+      edges: addEdge(
+        { ...connection, style: { stroke, strokeWidth: 3 } },
+        filteredEdges
+      ),
     });
   },
 
-  addNode: (node: Node) => {
-    // Take snapshot before adding node
+  addNode: (node: WorkflowNode) => {
     get().takeSnapshot();
-
-    set({
-      nodes: [...get().nodes, node],
-    });
+    set({ nodes: [...get().nodes, node] });
   },
 
-  updateNodeData: (id: string, data: any) => {
-    // Avoid store pollution on every keystroke
+  updateNodeData: <T extends WorkflowNodeData>(id: string, data: Partial<T>) => {
     set({
       nodes: get().nodes.map((node) => {
         if (node.id === id) {
-          return { ...node, data: { ...node.data, ...data } };
+          return { ...node, data: { ...node.data, ...data } } as WorkflowNode;
         }
         return node;
       }),
@@ -277,7 +310,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     updateNodeData(nodeId, { isLoading: true, output: '', error: null, validationError: null });
 
     try {
-      // 1. Gather Inputs
       const incomingEdges = edges.filter((edge) => edge.target === nodeId);
       let textInput = "";
       let systemTextInput = "";
@@ -310,24 +342,27 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         }
       });
 
-      // 2. Propagation Logic for System Prompt
       if (!systemTextInput.trim()) {
         const parentWithSystemPrompt = incomingEdges
           .map(edge => nodes.find(n => n.id === edge.source))
           .find(n => n?.data?.activeSystemPrompt);
 
         if (parentWithSystemPrompt) {
-          systemTextInput = parentWithSystemPrompt.data.activeSystemPrompt;
+          systemTextInput = parentWithSystemPrompt.data.activeSystemPrompt || "";
         }
       }
 
       const activeSystemPrompt = systemTextInput.trim();
       updateNodeData(nodeId, { activeSystemPrompt });
 
-      if (targetNode.data.text) textInput += ` ${targetNode.data.text}`;
-      const userPrompt = textInput.trim();
+      // Gather specific node prompt
+      let nodeSpecificText = "";
+      if (targetNode.type === 'textNode') {
+        nodeSpecificText = targetNode.data.text || "";
+      }
 
-      // 3. Validation
+      const userPrompt = (textInput + " " + nodeSpecificText).trim();
+
       if (!userPrompt && imageInputs.length === 0) {
         updateNodeData(nodeId, {
           isLoading: false,
@@ -336,14 +371,13 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         return;
       }
 
-      // 4. Strategy Selection
+      // Strategy Pattern for Execution
       if (targetNode.type === 'imageNode') {
         const selectedModel = targetNode.data.selectedModel || 'pollinations';
 
-        // FLUX.1-schnell Strategy
         if (selectedModel === 'flux-schnell') {
-          if (imageInputs.length > 0) throw new Error("FLUX.1-schnell is text-to-image only. Please disconnect image inputs.");
-          if (!userPrompt) throw new Error("Required input is missing.");
+          if (imageInputs.length > 0) throw new Error("FLUX.1-schnell is text-to-image only.");
+          if (!userPrompt) throw new Error("Prompt is required.");
 
           const response = await fetch('/api/huggingface/run', {
             method: 'POST',
@@ -355,52 +389,24 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             }),
           });
 
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
-            throw new Error(errorData.error || `HTTP ${response.status}`);
-          }
-
+          if (!response.ok) throw new Error(`HuggingFace error: ${response.status}`);
           const blob = await response.blob();
           updateNodeData(nodeId, {
             output: URL.createObjectURL(blob),
-            generatedDescription: "Text-to-Image (FLUX.1-schnell)",
             isLoading: false
           });
           return;
         }
 
-        // Instruct-Pix2Pix Strategy
         if (selectedModel === 'instruct-pix2pix') {
-          throw new Error("Instruct-Pix2Pix is only available to premium users. Please upgrade your plan.");
+          throw new Error("Instruct-Pix2Pix is currently unavailable.");
         }
 
-        // Pollinations/Gemini Multi-modal Strategy
-        let finalPromptForGen = userPrompt;
-        if (imageInputs.length > 0) {
-          try {
-            const descriptionPrompt = imageInputs.length > 1
-              ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one detailed, cohesive description that captures the essence of all input images."
-              : "Describe the visual style, subject, colors, and composition of this image in one detailed sentence.";
-
-            const resp = await fetch('/api/gemini/run', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'gemini-2.5-flash', prompt: descriptionPrompt, images: imageInputs }),
-            });
-            const result = await resp.json();
-            if (!result.error && result.output) finalPromptForGen = `${userPrompt}. Based on image description: ${result.output}`;
-          } catch (e) {
-            console.warn("Gemini description failed", e);
-          }
-        }
-
-        if (!finalPromptForGen.trim()) throw new Error("Required input is missing.");
-
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPromptForGen.slice(0, 10000))}?nologo=true&private=true&seed=${Math.floor(Math.random() * 999999)}&width=1024&height=1024`;
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Default Pollinations strategy
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt)}?nologo=true&private=true&seed=${Math.floor(Math.random() * 999999)}&width=1024&height=1024`;
+        await new Promise(resolve => setTimeout(resolve, 1000));
         updateNodeData(nodeId, {
           output: imageUrl,
-          generatedDescription: imageInputs.length > 0 ? "Image-to-Image (via Description)" : "Text-to-Image",
           isLoading: false
         });
         return;
@@ -413,7 +419,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           body: JSON.stringify({
             model: targetNode.data.model || 'gemini-2.5-flash',
             prompt: userPrompt,
-            systemInstruction: activeSystemPrompt || targetNode.data.systemPrompt || undefined,
+            systemInstruction: activeSystemPrompt || targetNode.data.systemPrompt,
             images: imageInputs
           }),
         });
@@ -432,18 +438,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       });
     }
   },
+
   fetchWorkflows: async () => {
     try {
-      const response = await fetch('/api/workflows');
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to fetch workflows");
-
-      if (Array.isArray(data)) {
+      const resp = await fetch('/api/workflows');
+      const data = await resp.json();
+      if (resp.ok && Array.isArray(data)) {
         set({ workflows: data.map((w: any) => ({ id: w.id, name: w.name })) });
       }
-    } catch (error: any) {
-      console.error("Fetch Workflows Error:", error);
-    }
+    } catch (e) { console.error(e); }
   },
 
   saveWorkflow: async () => {
@@ -452,47 +455,36 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     try {
       const method = currentWorkflowId ? 'PUT' : 'POST';
       const url = currentWorkflowId ? `/api/workflows/${currentWorkflowId}` : '/api/workflows';
-
-      const response = await fetch(url, {
+      const resp = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: workflowName, nodes, edges }),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to save workflow");
-
-      if (!currentWorkflowId && data.id) {
+      const data = await resp.json();
+      if (resp.ok && !currentWorkflowId && data.id) {
         set({ currentWorkflowId: data.id });
       }
-
-      // Refresh list
       await get().fetchWorkflows();
-    } catch (error: any) {
-      console.error("Save Workflow Error:", error);
-      alert(error.message || "Failed to save workflow");
-    } finally {
-      set({ isSaving: false });
-    }
+    } catch (e) { alert("Failed to save workflow"); }
+    finally { set({ isSaving: false }); }
   },
+
   loadWorkflow: async (id: string) => {
     try {
-      const response = await fetch(`/api/workflows/${id}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to load workflow");
-
-      set({
-        currentWorkflowId: id,
-        workflowName: data.name,
-        nodes: data.nodes,
-        edges: data.edges,
-        history: { past: [], future: [] }
-      });
-    } catch (error: any) {
-      console.error("Load Workflow Error:", error);
-      alert(error.message || "Failed to load workflow");
-    }
+      const resp = await fetch(`/api/workflows/${id}`);
+      const data = await resp.json();
+      if (resp.ok) {
+        set({
+          currentWorkflowId: id,
+          workflowName: data.name,
+          nodes: data.nodes as WorkflowNode[],
+          edges: data.edges,
+          history: { past: [], future: [] }
+        });
+      }
+    } catch (e) { alert("Failed to load workflow"); }
   },
+
   createNewWorkflow: () => {
     set({
       currentWorkflowId: null,
@@ -505,45 +497,28 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   exportWorkflow: () => {
     const { nodes, edges, workflowName } = get();
-    const data = {
-      name: workflowName,
-      nodes,
-      edges,
-      version: "1.0",
-      exportedAt: new Date().toISOString()
-    };
+    const data = { name: workflowName, nodes, edges };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${workflowName.replace(/\s+/g, '_').toLowerCase()}_workflow.json`;
-    document.body.appendChild(link);
+    link.download = `${workflowName.toLowerCase()}.json`;
     link.click();
-    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   },
 
   importWorkflow: (json: any) => {
     try {
-      // Validation
-      if (!json || typeof json !== 'object') throw new Error("Invalid JSON file");
-      if (!Array.isArray(json.nodes)) throw new Error("Invalid workflow: Missing nodes");
-      if (!Array.isArray(json.edges)) throw new Error("Invalid workflow: Missing edges");
-
+      if (!Array.isArray(json.nodes) || !Array.isArray(json.edges)) throw new Error("Invalid format");
       get().takeSnapshot();
-
       set({
         workflowName: json.name || "Imported Workflow",
-        nodes: json.nodes,
+        nodes: json.nodes as WorkflowNode[],
         edges: json.edges,
         currentWorkflowId: null,
         history: { past: [], future: [] }
       });
-
       return { success: true };
-    } catch (error: any) {
-      console.error("Import Error:", error);
-      return { success: false, error: error.message };
-    }
+    } catch (e: any) { return { success: false, error: e.message }; }
   }
 }));
