@@ -1,23 +1,91 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
-import { Plus, MoveRight, Loader2, MoreHorizontal, Trash2, ChevronRight, Pencil, ChevronDown } from 'lucide-react';
+import { Position, useUpdateNodeInternals } from 'reactflow';
+import { Plus, MoveRight, Loader2, ChevronRight, ChevronDown } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
+import { BaseNodeMenu, useBaseNodeMenu } from '../shared/BaseNodeMenu';
+import { ValidationHandle } from '../shared/ValidationHandle';
 
+/**
+ * ImageModelSelectionSubmenu - Handles model selection for ImageNode.
+ * Uses BaseNodeMenuContext to close the menu upon selection.
+ */
+const ImageModelSelectionSubmenu = ({ id, selectedModel, updateNodeData }: { id: string, selectedModel: string, updateNodeData: any }) => {
+    const { closeMenu } = useBaseNodeMenu();
+    const [showModelSubmenu, setShowModelSubmenu] = useState(false);
+
+    return (
+        <div className="w-full px-[3px] relative">
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowModelSubmenu(!showModelSubmenu);
+                }}
+                className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+            >
+                <span>Select Model</span>
+                {showModelSubmenu ? <ChevronDown size={12} className="opacity-50" /> : <ChevronRight size={12} className="opacity-50" />}
+            </button>
+
+            {showModelSubmenu && (
+                <div className="w-full flex flex-col items-center justify-center mt-1">
+                    <button
+                        onClick={() => {
+                            updateNodeData(id, { selectedModel: 'pollinations' });
+                            setShowModelSubmenu(false);
+                            closeMenu();
+                        }}
+                        className={cn(
+                            "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
+                            selectedModel === 'pollinations' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                        )}
+                        style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                    >
+                        <span>Pollinations</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            updateNodeData(id, { selectedModel: 'flux-schnell' });
+                            setShowModelSubmenu(false);
+                            closeMenu();
+                        }}
+                        className={cn(
+                            "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
+                            selectedModel === 'flux-schnell' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                        )}
+                        style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                    >
+                        <span>FLUX.1-schnell</span>
+                    </button>
+                    <button
+                        disabled
+                        className={cn(
+                            "px-[12px] pl-[24px] flex items-center justify-start transition-colors border-none outline-none shadow-none ring-0 rounded-[4px] opacity-50 cursor-not-allowed",
+                            selectedModel === 'instruct-pix2pix' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                        )}
+                        style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                    >
+                        <span>Instruct-Pix2Pix (Inactive)</span>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/**
+ * ImageNode - Generates images based on text prompts and optional input images.
+ */
 export default function ImageNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
-    const {
-        updateNodeData,
-        runNode,
-        onNodesChange,
-        connectionStart,
-        connectionError,
-        setConnectionError,
-        validateConnection
-    } = useWorkflowStore();
+    // Atomic selectors for better performance
+    const updateNodeData = useWorkflowStore(state => state.updateNodeData);
+    const runNode = useWorkflowStore(state => state.runNode);
+    const onNodesChange = useWorkflowStore(state => state.onNodesChange);
+
     const updateNodeInternals = useUpdateNodeInternals();
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [imageSize, setImageSize] = useState<{ width: number, height: number } | null>(null);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [showModelSubmenu, setShowModelSubmenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -51,24 +119,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
         }
     };
 
-    const onHandleMouseEnter = (handleId: string) => {
-        if (connectionStart && connectionStart.nodeId !== id) {
-            const result = validateConnection(
-                connectionStart.nodeId,
-                connectionStart.handleId,
-                id,
-                handleId
-            );
-            if (!result.isValid && result.message) {
-                setConnectionError({ nodeId: id, handleId, message: result.message });
-            }
-        }
-    };
-
-    const onHandleMouseLeave = () => {
-        setConnectionError(null);
-    };
-
     return (
         <>
             <div className={cn(
@@ -98,134 +148,17 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         />
                     </div>
 
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className={cn(
-                                "rounded-[4px] transition-all duration-200 flex items-center justify-center relative z-10 border-none outline-none focus:outline-none ring-0 shadow-none",
-                                "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white",
-                                isMenuOpen ? "bg-[rgb(53,53,57)] text-white" : ""
-                            )}
-                            style={{ height: '28px', width: '28px' }}
-                        >
-                            <MoreHorizontal size={20} strokeWidth={1} />
-                        </button>
-
-                        {isMenuOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-[9997]"
-                                    onClick={() => {
-                                        setIsMenuOpen(false);
-                                        setShowModelSubmenu(false);
-                                    }}
-                                />
-                                <div
-                                    className="absolute bottom-full mb-2 right-0 bg-[rgb(33,33,38)] rounded-[8px] z-[9998] py-[8px] flex flex-col items-center justify-center border border-[rgb(53,53,57)] shadow-xl"
-                                    style={{
-                                        width: '190.4px',
-                                        fontFamily: '"DM Sans", system-ui, -apple-system, Arial, sans-serif'
-                                    }}
-                                >
-                                    {/* Model Selection */}
-                                    <div
-                                        className="w-full px-[3px] relative"
-                                    >
-                                        <button
-                                            onClick={() => setShowModelSubmenu(!showModelSubmenu)}
-                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
-                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                        >
-                                            <span>Select Model</span>
-                                            {showModelSubmenu ? <ChevronDown size={12} className="opacity-50" /> : <ChevronRight size={12} className="opacity-50" />}
-                                        </button>
-
-                                        {/* Model Submenu */}
-                                        {showModelSubmenu && (
-                                            <div
-                                                className="w-full flex flex-col items-center justify-center mt-1"
-                                                style={{
-                                                    width: '100%'
-                                                }}
-                                            >
-                                                <button
-                                                    onClick={() => {
-                                                        updateNodeData(id, { selectedModel: 'pollinations' });
-                                                        setIsMenuOpen(false);
-                                                        setShowModelSubmenu(false);
-                                                    }}
-                                                    className={cn(
-                                                        "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
-                                                        selectedModel === 'pollinations' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
-                                                    )}
-                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                                >
-                                                    <span>Pollinations</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        updateNodeData(id, { selectedModel: 'flux-schnell' });
-                                                        setIsMenuOpen(false);
-                                                        setShowModelSubmenu(false);
-                                                    }}
-                                                    className={cn(
-                                                        "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
-                                                        selectedModel === 'flux-schnell' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
-                                                    )}
-                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                                >
-                                                    <span>FLUX.1-schnell</span>
-                                                </button>
-                                                <button
-                                                    disabled
-                                                    className={cn(
-                                                        "px-[12px] pl-[24px] flex items-center justify-start transition-colors border-none outline-none shadow-none ring-0 rounded-[4px] opacity-50 cursor-not-allowed",
-                                                        selectedModel === 'instruct-pix2pix' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
-                                                    )}
-                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                                >
-                                                    <span>Instruct-Pix2Pix (Inactive)</span>
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Rename */}
-                                    <div className="w-full px-[3px]">
-                                        <button
-                                            onClick={() => {
-                                                setIsMenuOpen(false);
-                                                setTimeout(() => {
-                                                    inputRef.current?.focus();
-                                                    inputRef.current?.select();
-                                                }, 50);
-                                            }}
-                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
-                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                        >
-                                            <span>Rename</span>
-                                            <Pencil size={12} className="opacity-50" />
-                                        </button>
-                                    </div>
-
-                                    {/* Delete */}
-                                    <div className="w-full px-[3px]">
-                                        <button
-                                            onClick={() => {
-                                                onNodesChange([{ id, type: 'remove' }]);
-                                                setIsMenuOpen(false);
-                                            }}
-                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px] group/delete"
-                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                        >
-                                            <span className="group-hover/delete:text-red-400 transition-colors">Delete</span>
-                                            <Trash2 size={12} className="opacity-50 group-hover/delete:text-red-400 transition-colors" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    <BaseNodeMenu
+                        id={id}
+                        onNodesChange={onNodesChange}
+                        labelInputRef={inputRef}
+                    >
+                        <ImageModelSelectionSubmenu
+                            id={id}
+                            selectedModel={selectedModel}
+                            updateNodeData={updateNodeData}
+                        />
+                    </BaseNodeMenu>
                 </div>
                 <div
                     className="rounded-none overflow-hidden flex flex-col mx-auto mt-[11px] shrink-0 relative group/preview"
@@ -336,39 +269,20 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                 </div>
 
                 {/* Handles */}
-                <Handle
+                <ValidationHandle
                     type="target"
                     position={Position.Left}
                     id="text-in"
-                    isConnectableStart={false}
+                    nodeId={id}
                     style={{
                         top: '60px',
-                        borderColor: data.validationError ? 'rgb(241,160,250)' : 'rgb(241,160,250)',
-                        backgroundColor: data.validationError ? 'rgb(241,160,250)' : '#2b2b2f'
                     }}
                     className={cn(
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
                         data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
                     )}
-                    onMouseEnter={() => onHandleMouseEnter('text-in')}
-                    onMouseLeave={onHandleMouseLeave}
-                >
-                    {(data.validationError || data.error === 'Required input is missing.') && (
-                        <>
-                            <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
-                                <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
-                            </div>
-                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                                Required input is missing.
-                            </div>
-                        </>
-                    )}
-                    {connectionError?.nodeId === id && connectionError?.handleId === 'text-in' && (
-                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                            {connectionError.message}
-                        </div>
-                    )}
-                </Handle>
+                    showRequiredError={data.validationError || data.error === 'Required input is missing.'}
+                />
 
                 {(selected || data.validationError) && (
                     <div className="absolute left-[-125px] top-[60px] -translate-y-1/2 w-[100px] flex items-center justify-end pr-1 animate-in fade-in duration-200 z-50">
@@ -389,22 +303,14 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     const topPosition = 100 + (index * 40);
                     return (
                         <React.Fragment key={`image-input-${index}`}>
-                            <Handle
+                            <ValidationHandle
                                 type="target"
                                 position={Position.Left}
                                 id={`image-in-${index}`}
-                                isConnectableStart={false}
+                                nodeId={id}
                                 style={{ top: `${topPosition}px` }}
                                 className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50 transition-colors group/handle"
-                                onMouseEnter={() => onHandleMouseEnter(`image-in-${index}`)}
-                                onMouseLeave={onHandleMouseLeave}
-                            >
-                                {connectionError?.nodeId === id && connectionError?.handleId === `image-in-${index}` && (
-                                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                                        {connectionError.message}
-                                    </div>
-                                )}
-                            </Handle>
+                            />
                             {selected && (
                                 <div
                                     className="absolute -translate-y-1/2 w-[100px] flex items-center justify-end pr-1 animate-in fade-in duration-200 z-50"
@@ -419,14 +325,15 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                     );
                 })}
 
-                <Handle
+                <ValidationHandle
                     type="source"
                     position={Position.Right}
                     id="image-out"
+                    nodeId={id}
                     style={{ top: '200px' }}
                     className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !right-[-6px] z-50 transition-colors group/handle"
-                >
-                </Handle>
+                />
+
                 {selected && (
                     <div className="absolute right-[-70px] top-[200px] -translate-y-1/2 flex items-center pl-2 animate-in fade-in duration-200 z-50">
                         <span className="text-[14px] font-[500] text-[rgb(110,221,179)] leading-normal" style={{ fontFamily: '"DM Mono", monospace', color: 'rgb(110,221,179)' }}>Result</span>

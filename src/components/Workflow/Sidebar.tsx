@@ -9,11 +9,16 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 
 export default function Sidebar() {
-    const {
-        workflowName, setWorkflowName, workflows, fetchWorkflows,
-        loadWorkflow, createNewWorkflow, saveWorkflow, isSaving,
-        exportWorkflow, importWorkflow
-    } = useWorkflowStore();
+    const workflowName = useWorkflowStore(state => state.workflowName);
+    const setWorkflowName = useWorkflowStore(state => state.setWorkflowName);
+    const workflows = useWorkflowStore(state => state.workflows);
+    const fetchWorkflows = useWorkflowStore(state => state.fetchWorkflows);
+    const loadWorkflow = useWorkflowStore(state => state.loadWorkflow);
+    const createNewWorkflow = useWorkflowStore(state => state.createNewWorkflow);
+    const saveWorkflow = useWorkflowStore(state => state.saveWorkflow);
+    const isSaving = useWorkflowStore(state => state.isSaving);
+    const exportWorkflow = useWorkflowStore(state => state.exportWorkflow);
+    const importWorkflow = useWorkflowStore(state => state.importWorkflow);
     const [activeTab, setActiveTab] = useState<string | null>('search');
     const [localTitle, setLocalTitle] = useState(workflowName);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);

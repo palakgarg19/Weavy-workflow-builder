@@ -1,29 +1,61 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Handle, Position, useReactFlow, useUpdateNodeInternals } from 'reactflow';
-import { MoreHorizontal, Loader2, Plus, MoveRight, Asterisk, Trash2, ChevronRight, Pencil, ChevronDown } from 'lucide-react';
+import { Position, useUpdateNodeInternals } from 'reactflow';
+import { ChevronRight, ChevronDown, Loader2, Plus, MoveRight } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
+import { BaseNodeMenu, useBaseNodeMenu } from '../shared/BaseNodeMenu';
+import { ValidationHandle } from '../shared/ValidationHandle';
 
-const AVAILABLE_MODELS = [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Standard)', disabled: false },
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Fast)', disabled: true },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Reasoning)', disabled: true },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)', disabled: false },
-];
+/**
+ * LLMModelSelectionSubmenu - Handles model selection for LLMNode.
+ */
+const LLMModelSelectionSubmenu = () => {
+    const { closeMenu } = useBaseNodeMenu();
+    const [showModelSubmenu, setShowModelSubmenu] = useState(false);
 
+    return (
+        <div className="relative w-full px-[3px]">
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowModelSubmenu(!showModelSubmenu);
+                }}
+                className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+            >
+                <span>Select Model</span>
+                {showModelSubmenu ? <ChevronDown size={12} className="opacity-50" /> : <ChevronRight size={12} className="opacity-50" />}
+            </button>
+
+            {/* Model Submenu */}
+            {showModelSubmenu && (
+                <div className="w-full flex flex-col items-center justify-center mt-1">
+                    <button
+                        onClick={() => {
+                            setShowModelSubmenu(false);
+                            closeMenu();
+                        }}
+                        className="px-[12px] pl-[24px] w-full flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors bg-[rgb(53,53,57)] border-none outline-none shadow-none ring-0 rounded-[4px]"
+                        style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                    >
+                        <span>google/gemini-2.5-flash</span>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/**
+ * LLMNode - Processes text and image inputs through Google Gemini models.
+ */
 export default function LLMNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
-    const {
-        updateNodeData,
-        runNode,
-        onNodesChange,
-        connectionStart,
-        connectionError,
-        setConnectionError,
-        validateConnection
-    } = useWorkflowStore();
-    const updateNodeInternals = useUpdateNodeInternals();
+    // Atomic selectors for better performance
+    const updateNodeData = useWorkflowStore(state => state.updateNodeData);
+    const runNode = useWorkflowStore(state => state.runNode);
+    const onNodesChange = useWorkflowStore(state => state.onNodesChange);
 
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const updateNodeInternals = useUpdateNodeInternals();
     const [showModelSubmenu, setShowModelSubmenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,7 +68,6 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
         }
     }, [data.error, data.validationError, id, updateNodeData]);
 
-
     const imageInputCount = data.imageInputCount !== undefined ? data.imageInputCount : 1;
 
     useEffect(() => {
@@ -48,26 +79,6 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
             updateNodeData(id, { imageInputCount: imageInputCount + 1 });
         }
     };
-
-    const onHandleMouseEnter = (handleId: string) => {
-        if (connectionStart && connectionStart.nodeId !== id) {
-            const result = validateConnection(
-                connectionStart.nodeId,
-                connectionStart.handleId,
-                id,
-                handleId
-            );
-            if (!result.isValid && result.message) {
-                setConnectionError({ nodeId: id, handleId, message: result.message });
-            }
-        }
-    };
-
-    const onHandleMouseLeave = () => {
-        setConnectionError(null);
-    };
-
-    const currentModel = data.model || 'gemini-2.5-flash';
 
     return (
         <>
@@ -98,105 +109,13 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                         />
                     </div>
 
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className={cn(
-                                "rounded-[4px] transition-all duration-200 flex items-center justify-center relative z-10 border-none outline-none focus:outline-none ring-0 shadow-none",
-                                "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white",
-                                isMenuOpen ? "bg-[rgb(53,53,57)] text-white" : ""
-                            )}
-                            style={{ height: '28px', width: '28px' }}
-                        >
-                            <MoreHorizontal size={20} strokeWidth={1} />
-                        </button>
-
-                        {isMenuOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-[9997]"
-                                    onClick={() => {
-                                        setIsMenuOpen(false);
-                                        setShowModelSubmenu(false);
-                                    }}
-                                />
-                                <div
-                                    className="absolute bottom-full mb-2 right-0 bg-[rgb(33,33,38)] rounded-[8px] z-[9998] py-[8px] flex flex-col items-center justify-center border border-[rgb(53,53,57)] shadow-xl"
-                                    style={{
-                                        width: '190.4px',
-                                        fontFamily: '"DM Sans", system-ui, -apple-system, Arial, sans-serif'
-                                    }}
-                                >
-                                    {/* Model Selection */}
-                                    <div
-                                        className="relative w-full px-[3px]"
-                                    >
-                                        <button
-                                            onClick={() => setShowModelSubmenu(!showModelSubmenu)}
-                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
-                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                        >
-                                            <span>Select Model</span>
-                                            {showModelSubmenu ? <ChevronDown size={12} className="opacity-50" /> : <ChevronRight size={12} className="opacity-50" />}
-                                        </button>
-
-                                        {/* Model Submenu */}
-                                        {showModelSubmenu && (
-                                            <div
-                                                className="w-full flex flex-col items-center justify-center mt-1"
-                                                style={{
-                                                    width: '100%'
-                                                }}
-                                            >
-                                                <button
-                                                    onClick={() => {
-                                                        setIsMenuOpen(false);
-                                                    }}
-                                                    className="px-[12px] pl-[24px] w-full flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
-                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                                >
-                                                    <span>google/gemini-2.5-flash</span>
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Rename */}
-                                    <div className="w-full px-[3px]">
-                                        <button
-                                            onClick={() => {
-                                                setIsMenuOpen(false);
-                                                setTimeout(() => {
-                                                    inputRef.current?.focus();
-                                                    inputRef.current?.select();
-                                                }, 50);
-                                            }}
-                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
-                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                        >
-                                            <span>Rename</span>
-                                            <Pencil size={12} className="opacity-50" />
-                                        </button>
-                                    </div>
-
-                                    {/* Delete */}
-                                    <div className="w-full px-[3px]">
-                                        <button
-                                            onClick={() => {
-                                                onNodesChange([{ id, type: 'remove' }]);
-                                                setIsMenuOpen(false);
-                                            }}
-                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px] group/delete"
-                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                                        >
-                                            <span className="group-hover/delete:text-red-400 transition-colors">Delete</span>
-                                            <Trash2 size={12} className="opacity-50 group-hover/delete:text-red-400 transition-colors" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                    <BaseNodeMenu
+                        id={id}
+                        onNodesChange={onNodesChange}
+                        labelInputRef={inputRef}
+                    >
+                        <LLMModelSelectionSubmenu />
+                    </BaseNodeMenu>
                 </div>
 
                 <div
@@ -208,14 +127,6 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                 >
                     {data.isLoading && (
                         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[200] bg-[rgb(53,53,57)]/80 backdrop-blur-sm rounded-[8px]">
-                            <style>
-                                {`
-                            @keyframes node-spin {
-                                from { transform: rotate(0deg); }
-                                to { transform: rotate(360deg); }
-                            }
-                        `}
-                            </style>
                             <div style={{ animation: 'node-spin 1s linear infinite' }} className="w-8 h-8 flex items-center justify-center">
                                 <Loader2 size={32} className="text-[#a1a1aa]" />
                             </div>
@@ -285,12 +196,11 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     </button>
                 </div>
 
-                {/* Handles */}
-                <Handle
+                <ValidationHandle
                     type="target"
                     position={Position.Left}
                     id="prompt-in"
-                    isConnectableStart={false}
+                    nodeId={id}
                     style={{
                         top: '60px',
                     }}
@@ -298,25 +208,8 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
                         data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
                     )}
-                    onMouseEnter={() => onHandleMouseEnter('prompt-in')}
-                    onMouseLeave={onHandleMouseLeave}
-                >
-                    {(data.validationError || data.error === 'Required input is missing.') && (
-                        <>
-                            <div className="absolute top-[-4px] left-[-4px] bottom-[-4px] right-[-4px] flex items-center justify-center pointer-events-none">
-                                <div className="w-full h-full rounded-full bg-[rgb(241,160,250)]/20 animate-ping" />
-                            </div>
-                            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                                Required input is missing.
-                            </div>
-                        </>
-                    )}
-                    {connectionError?.nodeId === id && connectionError?.handleId === 'prompt-in' && (
-                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                            {connectionError.message}
-                        </div>
-                    )}
-                </Handle>
+                    showRequiredError={data.validationError || data.error === 'Required input is missing.'}
+                />
 
                 {(selected || data.validationError) && (
                     <div className="absolute left-[-125px] top-[60px] -translate-y-1/2 w-[100px] flex items-center justify-end pr-1 animate-in fade-in duration-200 z-50">
@@ -332,22 +225,14 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     </div>
                 )}
 
-                <Handle
+                <ValidationHandle
                     type="target"
                     position={Position.Left}
                     id="system-prompt-in"
-                    isConnectableStart={false}
+                    nodeId={id}
                     style={{ top: '100px' }}
                     className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !left-[-6px] z-50 transition-colors group/handle"
-                    onMouseEnter={() => onHandleMouseEnter('system-prompt-in')}
-                    onMouseLeave={onHandleMouseLeave}
-                >
-                    {connectionError?.nodeId === id && connectionError?.handleId === 'system-prompt-in' && (
-                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                            {connectionError.message}
-                        </div>
-                    )}
-                </Handle>
+                />
 
                 {selected && (
                     <div className="absolute left-[-150px] top-[100px] -translate-y-1/2 w-[125px] flex items-center justify-end pr-2 animate-in fade-in duration-200 z-50">
@@ -362,22 +247,14 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     const topPosition = 140 + (index * 40);
                     return (
                         <React.Fragment key={`image-input-${index}`}>
-                            <Handle
+                            <ValidationHandle
                                 type="target"
                                 position={Position.Left}
                                 id={`image-in-${index}`}
-                                isConnectableStart={false}
+                                nodeId={id}
                                 style={{ top: `${topPosition}px` }}
                                 className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(110,221,179)] !left-[-6px] z-50 transition-colors group/handle"
-                                onMouseEnter={() => onHandleMouseEnter(`image-in-${index}`)}
-                                onMouseLeave={onHandleMouseLeave}
-                            >
-                                {connectionError?.nodeId === id && connectionError?.handleId === `image-in-${index}` && (
-                                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[rgb(17,17,19)] text-white text-[11px] font-medium px-[12px] py-[8px] rounded-[6px] border border-[rgb(53,53,57)] shadow-xl whitespace-nowrap animate-in fade-in slide-in-from-left-2 z-[100] pointer-events-none">
-                                        {connectionError.message}
-                                    </div>
-                                )}
-                            </Handle>
+                            />
                             {selected && (
                                 <div
                                     className="absolute -translate-y-1/2 w-[100px] flex items-center justify-end pr-1 animate-in fade-in duration-200 z-50"
@@ -392,15 +269,15 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                     );
                 })}
 
-                <Handle
+                <ValidationHandle
                     type="source"
                     position={Position.Right}
                     id="response-out"
-                    isConnectableEnd={false}
+                    nodeId={id}
                     style={{ top: '200px' }}
                     className="!w-3 !h-3 !bg-[#2b2b2f] !border-4 !border-[rgb(241,160,250)] !right-[-6px] z-50 transition-colors group/handle"
-                >
-                </Handle>
+                />
+
                 {selected && (
                     <div className="absolute right-[-70px] top-[200px] -translate-y-1/2 flex items-center pl-2 animate-in fade-in duration-200 z-50">
                         <span className="text-[14px] font-[500] text-[rgb(241,160,250)] leading-normal" style={{ fontFamily: '"DM Mono", monospace', color: 'rgb(241,160,250)' }}>Result</span>

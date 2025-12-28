@@ -277,6 +277,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     updateNodeData(nodeId, { isLoading: true, output: '', error: null, validationError: null });
 
     try {
+      // 1. Gather Inputs
       const incomingEdges = edges.filter((edge) => edge.target === nodeId);
       let textInput = "";
       let systemTextInput = "";
@@ -300,18 +301,16 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             imageInputs.push(sourceNode.data.image);
           }
           if (sourceNode.data.output) {
-            // Check if output looks like a URL or Data URI (Image)
             if (sourceNode.data.output.startsWith('http') || sourceNode.data.output.startsWith('data:')) {
               imageInputs.push(sourceNode.data.output);
             } else {
-              // Otherwise treat as text
               textInput += ` ${sourceNode.data.output}`;
             }
           }
         }
       });
 
-      // Propagation logic: If no direct system prompt is connected, check for activeSystemPrompt from any input node
+      // 2. Propagation Logic for System Prompt
       if (!systemTextInput.trim()) {
         const parentWithSystemPrompt = incomingEdges
           .map(edge => nodes.find(n => n.id === edge.source))
@@ -325,12 +324,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       const activeSystemPrompt = systemTextInput.trim();
       updateNodeData(nodeId, { activeSystemPrompt });
 
-      // Add the node's own text prompt
       if (targetNode.data.text) textInput += ` ${targetNode.data.text}`;
-
       const userPrompt = textInput.trim();
 
-      // VALIDATION: If no text input is provided AND no images are present, show error
+      // 3. Validation
       if (!userPrompt && imageInputs.length === 0) {
         updateNodeData(nodeId, {
           isLoading: false,
@@ -339,99 +336,68 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         return;
       }
 
+      // 4. Strategy Selection
       if (targetNode.type === 'imageNode') {
         const selectedModel = targetNode.data.selectedModel || 'pollinations';
 
-        // Route 1: FLUX.1-schnell (Text-to-Image Only)
+        // FLUX.1-schnell Strategy
         if (selectedModel === 'flux-schnell') {
-          // Validation: FLUX doesn't support image inputs
-          if (imageInputs.length > 0) {
-            throw new Error("FLUX.1-schnell is text-to-image only. Please disconnect image inputs.");
+          if (imageInputs.length > 0) throw new Error("FLUX.1-schnell is text-to-image only. Please disconnect image inputs.");
+          if (!userPrompt) throw new Error("Required input is missing.");
+
+          const response = await fetch('/api/huggingface/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: "black-forest-labs/FLUX.1-schnell",
+              prompt: userPrompt,
+              task: "text-to-image"
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+            throw new Error(errorData.error || `HTTP ${response.status}`);
           }
 
-          if (!userPrompt) {
-            throw new Error("Required input is missing.");
-          }
-
-          try {
-            const response = await fetch('/api/huggingface/run', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                model: "black-forest-labs/FLUX.1-schnell",
-                prompt: userPrompt,
-                task: "text-to-image"
-              }),
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
-              throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-
-            const blob = await response.blob();
-            const imageUrl = URL.createObjectURL(blob);
-
-            updateNodeData(nodeId, {
-              output: imageUrl,
-              generatedDescription: "Text-to-Image (FLUX.1-schnell)",
-              isLoading: false
-            });
-            return;
-          } catch (error: any) {
-            if (error.message?.includes('429') || error.message?.includes('quota')) {
-              throw new Error("HuggingFace quota exceeded. Please check your API limits or try again later.");
-            } else if (error.message?.includes('401') || error.message?.includes('token')) {
-              throw new Error("HuggingFace authentication failed. Please check your HF_TOKEN in .env.local");
-            }
-            throw error;
-          }
+          const blob = await response.blob();
+          updateNodeData(nodeId, {
+            output: URL.createObjectURL(blob),
+            generatedDescription: "Text-to-Image (FLUX.1-schnell)",
+            isLoading: false
+          });
+          return;
         }
 
-        // Route 2: Instruct-Pix2Pix (Image-to-Image Editing)
+        // Instruct-Pix2Pix Strategy
         if (selectedModel === 'instruct-pix2pix') {
           throw new Error("Instruct-Pix2Pix is only available to premium users. Please upgrade your plan.");
         }
 
-        // Route 3: Pollinations (Text-Image-to-Image using Gemini)
-        let finalPromptForGen = textInput;
-
+        // Pollinations/Gemini Multi-modal Strategy
+        let finalPromptForGen = userPrompt;
         if (imageInputs.length > 0) {
           try {
-            const isMultiple = imageInputs.length > 1;
-            const descriptionPrompt = isMultiple
+            const descriptionPrompt = imageInputs.length > 1
               ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one detailed, cohesive description that captures the essence of all input images."
               : "Describe the visual style, subject, colors, and composition of this image in one detailed sentence.";
 
-            const response = await fetch('/api/gemini/run', {
+            const resp = await fetch('/api/gemini/run', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                model: 'gemini-2.5-flash',
-                prompt: descriptionPrompt,
-                images: imageInputs
-              }),
+              body: JSON.stringify({ model: 'gemini-2.5-flash', prompt: descriptionPrompt, images: imageInputs }),
             });
-            const result = await response.json();
-
-            if (!result.error && result.output) {
-              finalPromptForGen = `${textInput}. Based on image description: ${result.output}`;
-            }
+            const result = await resp.json();
+            if (!result.error && result.output) finalPromptForGen = `${userPrompt}. Based on image description: ${result.output}`;
           } catch (e) {
-            console.warn("Gemini description failed, using text only", e);
+            console.warn("Gemini description failed", e);
           }
         }
 
-        if (!finalPromptForGen.trim()) {
-          throw new Error("Required input is missing.");
-        }
+        if (!finalPromptForGen.trim()) throw new Error("Required input is missing.");
 
-        const randomSeed = Math.floor(Math.random() * 999999);
-        const cleanPrompt = encodeURIComponent(finalPromptForGen.slice(0, 10000));
-        const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&private=true&seed=${randomSeed}&width=1024&height=1024`;
-
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPromptForGen.slice(0, 10000))}?nologo=true&private=true&seed=${Math.floor(Math.random() * 999999)}&width=1024&height=1024`;
         await new Promise(resolve => setTimeout(resolve, 1500));
-
         updateNodeData(nodeId, {
           output: imageUrl,
           generatedDescription: imageInputs.length > 0 ? "Image-to-Image (via Description)" : "Text-to-Image",
@@ -441,33 +407,19 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       }
 
       if (targetNode.type === 'llmNode') {
-        const model = targetNode.data.model || 'gemini-2.5-flash';
-        const systemInstruction = activeSystemPrompt || targetNode.data.systemPrompt || undefined;
-        const userPrompt = textInput.trim();
-
-        if (!userPrompt) {
-          throw new Error("Required input is missing.");
-        }
-
         const response = await fetch('/api/gemini/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model,
+            model: targetNode.data.model || 'gemini-2.5-flash',
             prompt: userPrompt,
-            systemInstruction,
+            systemInstruction: activeSystemPrompt || targetNode.data.systemPrompt || undefined,
             images: imageInputs
           }),
         });
 
         const result = await response.json();
-
-        if (result.error) {
-          // Handle the Quota error
-          if (result.error.includes('429')) throw new Error("Quota exceeded. Please check billing or try a different model.");
-          throw new Error(result.error);
-        }
-
+        if (result.error) throw new Error(result.error);
         updateNodeData(nodeId, { output: result.output, isLoading: false });
       }
 

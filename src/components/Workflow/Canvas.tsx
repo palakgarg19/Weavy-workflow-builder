@@ -5,10 +5,8 @@ import ReactFlow, {
   Background,
   ReactFlowProvider,
   Node,
-  Panel,
   ConnectionMode,
   useReactFlow,
-  getOutgoers,
   MiniMap,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -19,7 +17,7 @@ import ImageNode from './nodes/ImageNode';
 import UploadNode from './nodes/UploadNode';
 import LLMNode from './nodes/LLMNode';
 import { generateId } from '@/lib/utils';
-import { Undo2, Redo2, MousePointer2, Hand, ZoomIn, ZoomOut, ChevronDown } from 'lucide-react';
+import { Undo2, Redo2, MousePointer2, Hand, ChevronDown } from 'lucide-react';
 import { CustomConnectionLine } from './CustomConnectionLine';
 
 const nodeTypes = {
@@ -36,20 +34,18 @@ function Flow() {
   const [isZoomMenuOpen, setIsZoomMenuOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
 
-  const {
-    nodes,
-    edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    addNode,
-    undo,
-    redo,
-    history,
-    setConnectionStart,
-    setConnectionError,
-    validateConnection: storeValidateConnection
-  } = useWorkflowStore();
+  const nodes = useWorkflowStore(state => state.nodes);
+  const edges = useWorkflowStore(state => state.edges);
+  const onNodesChange = useWorkflowStore(state => state.onNodesChange);
+  const onEdgesChange = useWorkflowStore(state => state.onEdgesChange);
+  const onConnect = useWorkflowStore(state => state.onConnect);
+  const addNode = useWorkflowStore(state => state.addNode);
+  const undo = useWorkflowStore(state => state.undo);
+  const redo = useWorkflowStore(state => state.redo);
+  const history = useWorkflowStore(state => state.history);
+  const setConnectionStart = useWorkflowStore(state => state.setConnectionStart);
+  const setConnectionError = useWorkflowStore(state => state.setConnectionError);
+  const storeValidateConnection = useWorkflowStore(state => state.validateConnection);
   const { zoomIn, zoomOut, fitView, zoomTo, getZoom } = useReactFlow();
 
   const canUndo = history.past.length > 0;
@@ -286,7 +282,6 @@ function Flow() {
 
           <div className="ml-[9px] w-[1px] h-[25px] bg-[rgb(53,53,57)]"></div>
 
-          {/* Undo */}
           <button
             onClick={undo}
             disabled={!canUndo}
