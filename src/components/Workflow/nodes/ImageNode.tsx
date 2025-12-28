@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
-import { Plus, MoveRight, Loader2, MoreHorizontal, Asterisk } from 'lucide-react';
+import { Plus, MoveRight, Loader2, MoreHorizontal, Asterisk, Trash2, ChevronRight, Pencil, ChevronDown } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 
@@ -8,10 +8,13 @@ import { cn } from '@/lib/utils';
  * ImageNode - Generates images based on text prompts and optional input images.
  */
 export default function ImageNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
-    const { updateNodeData, runNode } = useWorkflowStore();
+    const { updateNodeData, runNode, onNodesChange } = useWorkflowStore();
     const updateNodeInternals = useUpdateNodeInternals();
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [imageSize, setImageSize] = useState<{ width: number, height: number } | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [showModelSubmenu, setShowModelSubmenu] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Reset image loading state when output changes to a new URL
     React.useEffect(() => {
@@ -49,6 +52,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                 <div className="flex items-center justify-between pl-[16px] pr-[16px] pt-[22px] pb-[7px] h-[12px] shrink-0 mb-[6px] overflow-visible">
                     <div className="flex items-center h-[12px]">
                         <input
+                            ref={inputRef}
                             type="text"
                             value={data.label ?? 'Image'}
                             onChange={(e) => updateNodeData(id, { label: e.target.value })}
@@ -63,15 +67,114 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         />
                     </div>
 
-                    <button
-                        className={cn(
-                            "rounded-[4px] transition-all duration-200 flex items-center justify-center relative z-10 border-none outline-none focus:outline-none ring-0 shadow-none",
-                            "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white"
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className={cn(
+                                "rounded-[4px] transition-all duration-200 flex items-center justify-center relative z-10 border-none outline-none focus:outline-none ring-0 shadow-none",
+                                "bg-transparent text-[rgb(211,211,212)] hover:bg-[rgb(53,53,57)] hover:text-white",
+                                isMenuOpen ? "bg-[rgb(53,53,57)] text-white" : ""
+                            )}
+                            style={{ height: '28px', width: '28px' }}
+                        >
+                            <MoreHorizontal size={20} strokeWidth={1} />
+                        </button>
+
+                        {isMenuOpen && (
+                            <>
+                                <div
+                                    className="fixed inset-0 z-[9997]"
+                                    onClick={() => {
+                                        setIsMenuOpen(false);
+                                        setShowModelSubmenu(false);
+                                    }}
+                                />
+                                <div
+                                    className="absolute bottom-full mb-2 right-0 bg-[rgb(33,33,38)] rounded-[8px] z-[9998] py-[8px] flex flex-col items-center justify-center border border-[rgb(53,53,57)] shadow-xl"
+                                    style={{
+                                        width: '190.4px',
+                                        fontFamily: '"DM Sans", system-ui, -apple-system, Arial, sans-serif'
+                                    }}
+                                >
+                                    {/* Select Model */}
+                                    <div
+                                        className="w-full px-[3px] relative"
+                                    >
+                                        <button
+                                            onClick={() => setShowModelSubmenu(!showModelSubmenu)}
+                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                                        >
+                                            <span>Select Model</span>
+                                            {showModelSubmenu ? <ChevronDown size={12} className="opacity-50" /> : <ChevronRight size={12} className="opacity-50" />}
+                                        </button>
+
+                                        {/* Model Submenu */}
+                                        {showModelSubmenu && (
+                                            <div
+                                                className="w-full flex flex-col items-center justify-center mt-1"
+                                                style={{
+                                                    width: '100%'
+                                                }}
+                                            >
+                                                <button
+                                                    onClick={() => {
+                                                        // Handle model selection logic if needed
+                                                        setIsMenuOpen(false);
+                                                    }}
+                                                    className="px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                                                >
+                                                    <span>Pollinations</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                    className="px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                                                >
+                                                    <span>Trimbook pix2pix</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Rename */}
+                                    <div className="w-full px-[3px]">
+                                        <button
+                                            onClick={() => {
+                                                setIsMenuOpen(false);
+                                                // Small timeout to allow menu to close before focusing
+                                                setTimeout(() => {
+                                                    inputRef.current?.focus();
+                                                    inputRef.current?.select();
+                                                }, 50);
+                                            }}
+                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                                        >
+                                            <span>Rename</span>
+                                            <Pencil size={12} className="opacity-50" />
+                                        </button>
+                                    </div>
+
+                                    {/* Delete */}
+                                    <div className="w-full px-[3px]">
+                                        <button
+                                            onClick={() => {
+                                                onNodesChange([{ id, type: 'remove' }]);
+                                                setIsMenuOpen(false);
+                                            }}
+                                            className="px-[12px] w-[184px] flex items-center justify-between hover:bg-[rgb(53,53,57)] ml-[3px] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px] group/delete"
+                                            style={{ height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                                        >
+                                            <span className="group-hover/delete:text-red-400 transition-colors">Delete</span>
+                                            <Trash2 size={12} className="opacity-50 group-hover/delete:text-red-400 transition-colors" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
                         )}
-                        style={{ height: '28px', width: '28px' }}
-                    >
-                        <MoreHorizontal size={20} strokeWidth={1} />
-                    </button>
+                    </div>
                 </div>
 
                 {/* Preview with checkerboard background */}
