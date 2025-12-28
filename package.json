@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@huggingface/inference": "^4.13.5",
     "@prisma/client": "^5.19.1",
     "@vercel/postgres": "^0.10.0",
     "clsx": "^2.1.1",

@@ -293,18 +293,78 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       }
 
       if (targetNode.type === 'imageNode') {
+        const selectedModel = targetNode.data.selectedModel || 'pollinations';
 
+        // Route 1: FLUX.1-schnell (Text-to-Image Only)
+        if (selectedModel === 'flux-schnell') {
+          // Validation: FLUX doesn't support image inputs
+          if (imageInputs.length > 0) {
+            throw new Error("FLUX.1-schnell is text-to-image only. Please disconnect image inputs.");
+          }
+
+          if (!userPrompt) {
+            throw new Error("Text prompt required for FLUX.1-schnell");
+          }
+
+          try {
+            const response = await fetch('/api/huggingface/run', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: "black-forest-labs/FLUX.1-schnell",
+                prompt: userPrompt,
+                task: "text-to-image"
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+              throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            // Response is an image blob
+            const blob = await response.blob();
+            const imageUrl = URL.createObjectURL(blob);
+
+            updateNodeData(nodeId, {
+              output: imageUrl,
+              generatedDescription: "Text-to-Image (FLUX.1-schnell)",
+              isLoading: false
+            });
+            return;
+          } catch (error: any) {
+            // Enhanced error handling for HuggingFace API
+            if (error.message?.includes('429') || error.message?.includes('quota')) {
+              throw new Error("HuggingFace quota exceeded. Please check your API limits or try again later.");
+            } else if (error.message?.includes('401') || error.message?.includes('token')) {
+              throw new Error("HuggingFace authentication failed. Please check your HF_TOKEN in .env.local");
+            }
+            throw error;
+          }
+        }
+
+        // Route 2: Instruct-Pix2Pix (Image Editing) - DEACTIVATED
+        if (selectedModel === 'instruct-pix2pix') {
+          throw new Error("Instruct-Pix2Pix is currently deactivated for maintenance.");
+        }
+
+        // Route 2: Pollinations (Text-to-Image or Image Description)
         let finalPromptForGen = textInput;
 
         // Step A: If we have input images, ask Gemini to describe them first
         if (imageInputs.length > 0) {
           try {
+            const isMultiple = imageInputs.length > 1;
+            const descriptionPrompt = isMultiple
+              ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one detailed, cohesive description that captures the essence of all input images."
+              : "Describe the visual style, subject, colors, and composition of this image in one detailed sentence.";
+
             const response = await fetch('/api/gemini/run', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 model: 'gemini-2.5-flash',
-                prompt: "Describe the visual style, subject, colors, and composition of this image in one detailed sentence.",
+                prompt: descriptionPrompt,
                 images: imageInputs
               }),
             });
@@ -324,7 +384,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
         // Step C: Send to Pollinations (Free Image Gen)
         const randomSeed = Math.floor(Math.random() * 999999);
-        const cleanPrompt = encodeURIComponent(finalPromptForGen.slice(0, 1000));
+        const cleanPrompt = encodeURIComponent(finalPromptForGen.slice(0, 10000));
         const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&private=true&seed=${randomSeed}&width=1024&height=1024`;
 
         await new Promise(resolve => setTimeout(resolve, 1500));

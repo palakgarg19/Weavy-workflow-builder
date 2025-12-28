@@ -26,6 +26,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
     }, [data.output, data.isLoading]);
 
     const imageInputCount = data.imageInputCount || 1;
+    const selectedModel = data.selectedModel || 'pollinations';
 
     // Update node internals when imageInputCount changes so React Flow recognizes new handles
     useEffect(() => {
@@ -119,20 +120,41 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                             >
                                                 <button
                                                     onClick={() => {
-                                                        // Handle model selection logic if needed
+                                                        updateNodeData(id, { selectedModel: 'pollinations' });
                                                         setIsMenuOpen(false);
+                                                        setShowModelSubmenu(false);
                                                     }}
-                                                    className="px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                                                    className={cn(
+                                                        "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
+                                                        selectedModel === 'pollinations' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                                                    )}
                                                     style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
                                                 >
                                                     <span>Pollinations</span>
                                                 </button>
                                                 <button
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors bg-transparent border-none outline-none shadow-none ring-0 rounded-[4px]"
+                                                    onClick={() => {
+                                                        updateNodeData(id, { selectedModel: 'flux-schnell' });
+                                                        setIsMenuOpen(false);
+                                                        setShowModelSubmenu(false);
+                                                    }}
+                                                    className={cn(
+                                                        "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
+                                                        selectedModel === 'flux-schnell' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                                                    )}
                                                     style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
                                                 >
-                                                    <span>Trimbook pix2pix</span>
+                                                    <span>FLUX.1-schnell</span>
+                                                </button>
+                                                <button
+                                                    disabled
+                                                    className={cn(
+                                                        "px-[12px] pl-[24px] flex items-center justify-start transition-colors border-none outline-none shadow-none ring-0 rounded-[4px] opacity-50 cursor-not-allowed",
+                                                        selectedModel === 'instruct-pix2pix' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                                                    )}
+                                                    style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
+                                                >
+                                                    <span>Instruct-Pix2Pix (Inactive)</span>
                                                 </button>
                                             </div>
                                         )}
@@ -143,7 +165,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                         <button
                                             onClick={() => {
                                                 setIsMenuOpen(false);
-                                                // Small timeout to allow menu to close before focusing
+                                                // Small timeout
                                                 setTimeout(() => {
                                                     inputRef.current?.focus();
                                                     inputRef.current?.select();
@@ -246,25 +268,27 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
 
                 {/* Footer */}
                 <div className="mt-[15px] ml-[17px] flex items-center shrink-0 h-[36px]">
-                    <button
-                        onClick={handleAddImageInput}
-                        disabled={imageInputCount >= 10}
-                        className="flex items-center gap-2 bg-transparent border-0 shrink-0 !text-white hover:bg-[rgb(53,53,57)] transition-colors px-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                            width: '180px',
-                            height: '28px',
-                            borderRadius: '4px',
-                            fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            lineHeight: '18px',
-                            color: 'white !important'
-                        }}
-                    >
-                        <Plus size={14} color="white" /> <span style={{ color: 'white', paddingRight: "5px" }}>Add another image input</span>
-                    </button>
+                    {selectedModel !== 'instruct-pix2pix' && selectedModel !== 'flux-schnell' && (
+                        <button
+                            onClick={handleAddImageInput}
+                            disabled={imageInputCount >= 10}
+                            className="flex items-center gap-2 bg-transparent border-0 shrink-0 !text-white hover:bg-[rgb(53,53,57)] transition-colors px-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                                width: '180px',
+                                height: '28px',
+                                borderRadius: '4px',
+                                fontFamily: '"DM Sans", system-ui, -apple-system, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                lineHeight: '18px',
+                                color: 'white !important'
+                            }}
+                        >
+                            <Plus size={14} color="white" /> <span style={{ color: 'white', paddingRight: "5px" }}>Add another image input</span>
+                        </button>
+                    )}
 
-                    <div style={{ width: '124px' }} className="shrink-0" />
+                    <div style={{ width: (selectedModel === 'instruct-pix2pix' || selectedModel === 'flux-schnell') ? '304px' : '124px' }} className="shrink-0" />
 
                     <button
                         onClick={() => runNode(id)}
@@ -329,7 +353,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
 
                 {/* Additional Handles - Repositioned */}
                 {/* Image Input Handle - Green for Images */}
-                {Array.from({ length: imageInputCount }).map((_, index) => {
+                {selectedModel !== 'flux-schnell' && Array.from({ length: imageInputCount }).map((_, index) => {
                     const topPosition = 100 + (index * 40);
                     return (
                         <React.Fragment key={`image-input-${index}`}>
