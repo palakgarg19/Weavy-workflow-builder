@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Position } from 'reactflow';
-import { useWorkflowStore, UploadNodeData } from '@/store/workflowStore';
 import { Upload, X } from 'lucide-react';
+import { useWorkflowStore, UploadNodeData } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 import { BaseNodeMenu } from '../shared/BaseNodeMenu';
 import { ValidationHandle } from '../shared/ValidationHandle';

@@ -32,20 +32,6 @@ const ImageModelSelectionSubmenu = ({ id, selectedModel, updateNodeData }: { id:
                 <div className="w-full flex flex-col items-center justify-center mt-1">
                     <button
                         onClick={() => {
-                            updateNodeData(id, { selectedModel: 'pollinations' });
-                            setShowModelSubmenu(false);
-                            closeMenu();
-                        }}
-                        className={cn(
-                            "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
-                            selectedModel === 'pollinations' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
-                        )}
-                        style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
-                    >
-                        <span>Pollinations</span>
-                    </button>
-                    <button
-                        onClick={() => {
                             updateNodeData(id, { selectedModel: 'flux-schnell' });
                             setShowModelSubmenu(false);
                             closeMenu();
@@ -56,17 +42,21 @@ const ImageModelSelectionSubmenu = ({ id, selectedModel, updateNodeData }: { id:
                         )}
                         style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
                     >
-                        <span>FLUX.1-schnell</span>
+                        <span>Flux.1</span>
                     </button>
                     <button
-                        disabled
+                        onClick={() => {
+                            updateNodeData(id, { selectedModel: 'flux-plus-gemini' });
+                            setShowModelSubmenu(false);
+                            closeMenu();
+                        }}
                         className={cn(
-                            "px-[12px] pl-[24px] flex items-center justify-start transition-colors border-none outline-none shadow-none ring-0 rounded-[4px] opacity-50 cursor-not-allowed",
-                            selectedModel === 'instruct-pix2pix' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
+                            "px-[12px] pl-[24px] flex items-center justify-start hover:bg-[rgb(53,53,57)] transition-colors border-none outline-none shadow-none ring-0 rounded-[4px]",
+                            selectedModel === 'flux-plus-gemini' ? "bg-[rgb(53,53,57)]" : "bg-transparent"
                         )}
                         style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
                     >
-                        <span>Instruct-Pix2Pix</span>
+                        <span>Flux.1 + Gemini</span>
                     </button>
                 </div>
             )}
@@ -125,7 +115,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: Im
 
     useEffect(() => {
         updateNodeInternals(id);
-    }, [imageInputCount, id, updateNodeInternals]);
+    }, [imageInputCount, selectedModel, id, updateNodeInternals]);
 
     const handleAddImageInput = () => {
         if (imageInputCount < 10) {
@@ -237,7 +227,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: Im
                 </div>
 
                 <div className="mt-[15px] ml-[17px] flex items-center shrink-0 h-[36px]">
-                    {selectedModel !== 'instruct-pix2pix' && selectedModel !== 'flux-schnell' && (
+                    {selectedModel === 'flux-plus-gemini' && (
                         <button
                             onClick={handleAddImageInput}
                             disabled={imageInputCount >= 10}
@@ -257,7 +247,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: Im
                         </button>
                     )}
 
-                    <div style={{ width: (selectedModel === 'instruct-pix2pix' || selectedModel === 'flux-schnell') ? '304px' : '124px' }} className="shrink-0" />
+                    <div style={{ width: (selectedModel === 'flux-plus-gemini') ? '124px' : '304px' }} className="shrink-0" />
 
                     <button
                         onClick={() => runNode(id)}
@@ -309,7 +299,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: Im
                 )}
 
                 {/* Additional Input Handles */}
-                {selectedModel !== 'flux-schnell' && Array.from({ length: imageInputCount }).map((_, index) => {
+                {(selectedModel === 'flux-plus-gemini') && Array.from({ length: imageInputCount }).map((_, index) => {
                     const topPosition = 100 + (index * 40);
                     return (
                         <React.Fragment key={`image-input-${index}`}>

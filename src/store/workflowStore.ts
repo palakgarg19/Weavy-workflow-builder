@@ -35,7 +35,7 @@ export interface UploadNodeData extends BaseNodeData {
 }
 
 export interface ImageNodeData extends BaseNodeData {
-  selectedModel?: 'pollinations' | 'flux-schnell' | 'instruct-pix2pix';
+  selectedModel?: 'flux-schnell' | 'flux-plus-gemini';
   generatedDescription?: string;
   imageInputCount?: number;
 }
@@ -376,16 +376,49 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       if (targetNode.type === 'imageNode') {
         const selectedModel = targetNode.data.selectedModel || 'flux-schnell';
 
-        if (selectedModel === 'flux-schnell') {
-          if (imageInputs.length > 0) throw new Error("FLUX.1-schnell is text-to-image only.");
-          if (!userPrompt) throw new Error("Prompt is required.");
+        if (selectedModel === 'flux-schnell' || selectedModel === 'flux-plus-gemini') {
+          let promptToUse = userPrompt;
+
+          if (selectedModel === 'flux-plus-gemini') {
+            if (imageInputs.length === 0) throw new Error("Flux.1 + Gemini requires at least one input image.");
+
+            try {
+              const isMultiple = imageInputs.length > 1;
+              const descriptionPrompt = isMultiple
+                ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one concise, cohesive prompt for an image generator (max 400 characters) that captures the essence of all input images."
+                : "Describe the visual style, subject, colors, and composition of this image in one concise sentence suitable for an image generator (max 400 characters).";
+
+              const response = await fetch('/api/gemini/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  model: 'gemini-2.5-flash',
+                  prompt: descriptionPrompt,
+                  images: imageInputs
+                }),
+              });
+              const result = await response.json();
+
+              if (!result.error && result.output) {
+                promptToUse = `${userPrompt}. Based on image description: ${result.output}`;
+              }
+            } catch (e) {
+              console.warn("Gemini description failed for Flux+Gemini, using text only", e);
+            }
+          }
+
+          if (!promptToUse) throw new Error("Prompt is required.");
+
+          // Safety truncation (HuggingFace models have limits, but 1500 is usually safe for Flux)
+          const finalPrompt = promptToUse.slice(0, 1500);
+          console.log("Final Prompt for HuggingFace:", finalPrompt);
 
           const response = await fetch('/api/huggingface/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               model: "black-forest-labs/FLUX.1-schnell",
-              prompt: userPrompt,
+              prompt: finalPrompt,
               task: "text-to-image"
             }),
           });
@@ -394,60 +427,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           const blob = await response.blob();
           updateNodeData(nodeId, {
             output: URL.createObjectURL(blob),
-            isLoading: false
+            isLoading: false,
+            generatedDescription: selectedModel === 'flux-plus-gemini' ? "Flux.1 + Gemini (via Gemini Description)" : "Text-to-Image"
           });
           return;
         }
 
-        if (selectedModel === 'instruct-pix2pix') {
-          throw new Error("Instruct-Pix2Pix is currently unavailable.");
-        }
-
-        let finalPromptForGen = userPrompt;
-
-        if (imageInputs.length > 0) {
-          try {
-            const isMultiple = imageInputs.length > 1;
-            const descriptionPrompt = isMultiple
-              ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one detailed, cohesive description that captures the essence of all input images."
-              : "Describe the visual style, subject, colors, and composition of this image in one detailed sentence.";
-
-            const response = await fetch('/api/gemini/run', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                model: 'gemini-2.5-flash',
-                prompt: descriptionPrompt,
-                images: imageInputs
-              }),
-            });
-            const result = await response.json();
-
-            if (!result.error && result.output) {
-              finalPromptForGen = `${userPrompt}. Based on image description: ${result.output}`;
-            }
-          } catch (e) {
-            console.warn("Gemini description failed, using text only", e);
-          }
-        }
-
-        if (!finalPromptForGen.trim()) {
-          throw new Error("Could not generate a prompt. Please provide a text prompt or ensure the input image can be described.");
-        }
-
-        const randomSeed = Math.floor(Math.random() * 999999);
-        const cleanPrompt = encodeURIComponent(finalPromptForGen.slice(0, 10000));
-
-        const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&private=true&seed=${randomSeed}&width=1024&height=1024`;
-
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        updateNodeData(nodeId, {
-          output: imageUrl,
-          generatedDescription: imageInputs.length > 0 ? "Image-to-Image (via Description)" : "Text-to-Image",
-          isLoading: false
-        });
-        return;
       }
 
       if (targetNode.type === 'llmNode') {

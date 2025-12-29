@@ -4,22 +4,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   ReactFlowProvider,
-  ConnectionMode,
   useReactFlow,
   MiniMap,
   Panel,
   useViewport,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { Undo2, Redo2, MousePointer2, Hand, ChevronDown } from 'lucide-react';
 import { useWorkflowStore, WorkflowNode } from '@/store/workflowStore';
-import { cn } from '@/lib/utils';
+import { cn, generateId } from '@/lib/utils';
 import TextNode from './nodes/TextNode';
 import ImageNode from './nodes/ImageNode';
 import UploadNode from './nodes/UploadNode';
 import LLMNode from './nodes/LLMNode';
-import { generateId } from '@/lib/utils';
-import { Undo2, Redo2, MousePointer2, Hand, ChevronDown } from 'lucide-react';
-import { CustomConnectionLine } from './CustomConnectionLine';
+import { CustomConnectionLine } from './shared/CustomConnectionLine';
 
 const nodeTypes = {
   textNode: TextNode,
@@ -48,7 +46,7 @@ function Flow() {
   const setConnectionStart = useWorkflowStore(state => state.setConnectionStart);
   const setConnectionError = useWorkflowStore(state => state.setConnectionError);
   const storeValidateConnection = useWorkflowStore(state => state.validateConnection);
-  const { zoomIn, zoomOut, fitView, zoomTo, getZoom, screenToFlowPosition } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, zoomTo, screenToFlowPosition } = useReactFlow();
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -131,13 +129,13 @@ function Flow() {
 
       const newNode: WorkflowNode = {
         id: generateId(),
-        type: type as any, // Cast because drop type is string
+        type: type as WorkflowNode['type'],
         position,
         data: {
           label,
           ...(type === 'textNode' ? { text: 'Hipster Sisyphus, lime dots overall suit, pushing a huge round rock up a hill. The rock is sprayed with the text "default prompt", bright grey background extreme side long shot, cinematic, fashion style, side view' } : {}),
           ...(type === 'imageNode' ? { selectedModel: 'flux-schnell' } : {})
-        } as any,
+        } as WorkflowNode['data'],
       };
       addNode(newNode);
     },
@@ -183,7 +181,6 @@ function Flow() {
         nodeTypes={nodeTypes}
         onDrop={onDrop}
         onDragOver={onDragOver}
-        connectionMode={ConnectionMode.Loose}
         defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
         minZoom={0.01}
         maxZoom={3}

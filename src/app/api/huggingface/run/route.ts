@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
         }
 
         const { model, prompt, task } = parseResult.data;
-
         if (task === "text-to-image") {
             const blob = await hf.textToImage({
                 model,
