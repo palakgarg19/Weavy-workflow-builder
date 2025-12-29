@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Position } from 'reactflow';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { useWorkflowStore, UploadNodeData } from '@/store/workflowStore';
 import { Upload, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BaseNodeMenu } from '../shared/BaseNodeMenu';
@@ -9,7 +9,7 @@ import { ValidationHandle } from '../shared/ValidationHandle';
 /**
  * UploadNode - Handles file uploads and provides an image source for downstream nodes.
  */
-export default function UploadNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
+export default function UploadNode({ id, data, selected }: { id: string, data: UploadNodeData, selected: boolean }) {
     const updateNodeData = useWorkflowStore(state => state.updateNodeData);
     const onNodesChange = useWorkflowStore(state => state.onNodesChange);
 
@@ -125,7 +125,7 @@ export default function UploadNode({ id, data, selected }: { id: string, data: a
                             <div className="mb-3 p-3 bg-[#3a3a3f] rounded-full border border-[#52525b] group-hover/upload:border-[#71717a] transition-colors">
                                 <Upload size={20} className="text-[#a1a1aa]" />
                             </div>
-                            <span className="text-[13px] text-[#a1a1aa] font-medium">Drag & drop or click to upload</span>
+                            <span className="text-[13px] text-[#a1a1aa] font-medium">Click to upload</span>
                             {data.uploadError && (
                                 <span className="text-[12px] text-red-500 mt-2 font-medium bg-red-500/10 px-2 py-0.5 rounded-md border border-red-500/20">{data.uploadError}</span>
                             )}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Position, useUpdateNodeInternals } from 'reactflow';
 import { ChevronRight, ChevronDown, Loader2, Plus, MoveRight } from 'lucide-react';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { useWorkflowStore, LLMNodeData } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 import { BaseNodeMenu, useBaseNodeMenu } from '../shared/BaseNodeMenu';
 import { ValidationHandle } from '../shared/ValidationHandle';
@@ -49,7 +49,7 @@ const LLMModelSelectionSubmenu = () => {
 /**
  * LLMNode - Processes text and image inputs through Google Gemini models.
  */
-export default function LLMNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
+export default function LLMNode({ id, data, selected }: { id: string, data: LLMNodeData, selected: boolean }) {
     // Atomic selectors for better performance
     const updateNodeData = useWorkflowStore(state => state.updateNodeData);
     const runNode = useWorkflowStore(state => state.runNode);
@@ -127,13 +127,13 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                 >
                     {data.isLoading && (
                         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[200] bg-[rgb(53,53,57)]/80 backdrop-blur-sm rounded-[8px]">
-                            <div style={{ animation: 'node-spin 1s linear infinite' }} className="w-8 h-8 flex items-center justify-center">
+                            <div className="w-8 h-8 flex items-center justify-center animate-node-spin">
                                 <Loader2 size={32} className="text-[#a1a1aa]" />
                             </div>
                         </div>
                     )}
 
-                    <div className="w-full h-full p-[16px] flex flex-col flex-1 box-border overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                    <div className="w-full h-full p-[16px] flex flex-col flex-1 box-border overflow-y-auto custom-scrollbar nowheel nodrag">
                         {/* Error, Output, or Placeholder display */}
                         {data.error && data.error !== 'Required input is missing.' ? (
                             <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
@@ -208,7 +208,7 @@ export default function LLMNode({ id, data, selected }: { id: string, data: any,
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
                         data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
                     )}
-                    showRequiredError={data.validationError || data.error === 'Required input is missing.'}
+                    showRequiredError={!!data.validationError || data.error === 'Required input is missing.'}
                 />
 
                 {(selected || data.validationError) && (

@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error("HuggingFace API Error:", error);
 
-        // Enhanced error messages
         if (error.message?.includes('429') || error.status === 429) {
             return NextResponse.json(
                 { error: "HuggingFace quota exceeded. Please try again later." },

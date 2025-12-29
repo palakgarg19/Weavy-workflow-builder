@@ -37,6 +37,7 @@ export interface UploadNodeData extends BaseNodeData {
 export interface ImageNodeData extends BaseNodeData {
   selectedModel?: 'pollinations' | 'flux-schnell' | 'instruct-pix2pix';
   generatedDescription?: string;
+  imageInputCount?: number;
 }
 
 export interface LLMNodeData extends BaseNodeData {
@@ -373,7 +374,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
       // Strategy Pattern for Execution
       if (targetNode.type === 'imageNode') {
-        const selectedModel = targetNode.data.selectedModel || 'pollinations';
+        const selectedModel = targetNode.data.selectedModel || 'flux-schnell';
 
         if (selectedModel === 'flux-schnell') {
           if (imageInputs.length > 0) throw new Error("FLUX.1-schnell is text-to-image only.");
@@ -402,11 +403,48 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           throw new Error("Instruct-Pix2Pix is currently unavailable.");
         }
 
-        // Default Pollinations strategy
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt)}?nologo=true&private=true&seed=${Math.floor(Math.random() * 999999)}&width=1024&height=1024`;
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        let finalPromptForGen = userPrompt;
+
+        if (imageInputs.length > 0) {
+          try {
+            const isMultiple = imageInputs.length > 1;
+            const descriptionPrompt = isMultiple
+              ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one detailed, cohesive description that captures the essence of all input images."
+              : "Describe the visual style, subject, colors, and composition of this image in one detailed sentence.";
+
+            const response = await fetch('/api/gemini/run', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                prompt: descriptionPrompt,
+                images: imageInputs
+              }),
+            });
+            const result = await response.json();
+
+            if (!result.error && result.output) {
+              finalPromptForGen = `${userPrompt}. Based on image description: ${result.output}`;
+            }
+          } catch (e) {
+            console.warn("Gemini description failed, using text only", e);
+          }
+        }
+
+        if (!finalPromptForGen.trim()) {
+          throw new Error("Could not generate a prompt. Please provide a text prompt or ensure the input image can be described.");
+        }
+
+        const randomSeed = Math.floor(Math.random() * 999999);
+        const cleanPrompt = encodeURIComponent(finalPromptForGen.slice(0, 10000));
+
+        const imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&private=true&seed=${randomSeed}&width=1024&height=1024`;
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
         updateNodeData(nodeId, {
           output: imageUrl,
+          generatedDescription: imageInputs.length > 0 ? "Image-to-Image (via Description)" : "Text-to-Image",
           isLoading: false
         });
         return;

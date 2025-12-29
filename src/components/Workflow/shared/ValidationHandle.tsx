@@ -1,7 +1,6 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { cn } from '@/lib/utils';
 
 interface ValidationHandleProps {
     id: string;
@@ -17,7 +16,6 @@ interface ValidationHandleProps {
 
 /**
  * ValidationHandle - A ReactFlow Handle with integrated validation tooltip logic.
- * Reduces boilerplate in node components by handling hover events and error displays.
  */
 export const ValidationHandle: React.FC<ValidationHandleProps> = ({
     id,
@@ -30,7 +28,6 @@ export const ValidationHandle: React.FC<ValidationHandleProps> = ({
     onMouseEnter,
     onMouseLeave
 }) => {
-    // Atomic selectors for store updates
     const connectionStart = useWorkflowStore(state => state.connectionStart);
     const connectionError = useWorkflowStore(state => state.connectionError);
     const setConnectionError = useWorkflowStore(state => state.setConnectionError);

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   ReactFlowProvider,
-  Node,
   ConnectionMode,
   useReactFlow,
   MiniMap,
+  Panel,
+  useViewport,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useWorkflowStore, WorkflowNode } from '@/store/workflowStore';
@@ -29,10 +30,11 @@ const nodeTypes = {
 
 function Flow() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [activeTool, setActiveTool] = useState<'select' | 'pan'>('select');
   const [isZoomMenuOpen, setIsZoomMenuOpen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(100);
+
+  const { zoom: zoomLevelRaw } = useViewport();
+  const zoomLevel = Math.round(zoomLevelRaw * 100);
 
   const nodes = useWorkflowStore(state => state.nodes);
   const edges = useWorkflowStore(state => state.edges);
@@ -46,28 +48,11 @@ function Flow() {
   const setConnectionStart = useWorkflowStore(state => state.setConnectionStart);
   const setConnectionError = useWorkflowStore(state => state.setConnectionError);
   const storeValidateConnection = useWorkflowStore(state => state.validateConnection);
-  const { zoomIn, zoomOut, fitView, zoomTo, getZoom } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, zoomTo, getZoom, screenToFlowPosition } = useReactFlow();
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
 
-  const updateZoomLevel = useCallback(() => {
-    try {
-      const zoom = getZoom();
-      setZoomLevel(Math.round(zoom * 100));
-    } catch (e) {
-    }
-  }, [getZoom]);
-
-  useEffect(() => {
-    if (reactFlowInstance) {
-      updateZoomLevel();
-    }
-  }, [reactFlowInstance, updateZoomLevel]);
-
-  const onMove = useCallback(() => {
-    updateZoomLevel();
-  }, [updateZoomLevel]);
 
   const handleZoomIn = useCallback(() => {
     zoomIn();
@@ -133,7 +118,7 @@ function Flow() {
       const type = event.dataTransfer.getData('application/reactflow');
       if (typeof type === 'undefined' || !type) return;
 
-      const position = reactFlowInstance.screenToFlowPosition({
+      const position = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       });
@@ -150,12 +135,13 @@ function Flow() {
         position,
         data: {
           label,
-          ...(type === 'textNode' ? { text: 'Hipster Sisyphus, lime dots overall suit, pushing a huge round rock up a hill. The rock is sprayed with the text "default prompt", bright grey background extreme side long shot, cinematic, fashion style, side view' } : {})
+          ...(type === 'textNode' ? { text: 'Hipster Sisyphus, lime dots overall suit, pushing a huge round rock up a hill. The rock is sprayed with the text "default prompt", bright grey background extreme side long shot, cinematic, fashion style, side view' } : {}),
+          ...(type === 'imageNode' ? { selectedModel: 'flux-schnell' } : {})
         } as any,
       };
       addNode(newNode);
     },
-    [reactFlowInstance, addNode]
+    [screenToFlowPosition, addNode]
   );
 
   const onConnectStart = useCallback((_: any, { nodeId, handleId, handleType }: any) => {
@@ -195,8 +181,6 @@ function Flow() {
         isValidConnection={isValidConnection}
         connectionLineComponent={CustomConnectionLine}
         nodeTypes={nodeTypes}
-        onInit={setReactFlowInstance}
-        onMove={onMove}
         onDrop={onDrop}
         onDragOver={onDragOver}
         connectionMode={ConnectionMode.Loose}
@@ -226,13 +210,13 @@ function Flow() {
           }}
         />
 
-        <div
-          className="fixed bg-[rgb(33,33,38)] rounded-[8px] flex items-center z-[100]"
+        <Panel
+          position="bottom-center"
+          className="bg-[rgb(33,33,38)] rounded-[8px] flex items-center"
           style={{
             width: '237.2px',
             height: '44px',
-            left: '642px',
-            bottom: '16px'
+            marginBottom: '16px'
           }}
         >
           <button
@@ -368,7 +352,7 @@ function Flow() {
               </>
             )}
           </div>
-        </div>
+        </Panel>
       </ReactFlow>
     </div>
   );

@@ -16,28 +16,55 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Inter', Arial, Helvetica, sans-serif;
-  overflow: hidden; 
+  overflow: hidden;
   width: 100%;
   height: 100%;
 }
 
 /* React Flow Overrides for Pixel Perfection */
 .react-flow__edge-path {
-  stroke: #a1a1aa; /* Zinc 400 default edge */
+  stroke: #a1a1aa;
+  /* Zinc 400 default edge */
   stroke-width: 2px;
 }
 
 .react-flow__connection-path {
-    stroke: #e4e4e7;
-    stroke-width: 2px;
+  stroke: #e4e4e7;
+  stroke-width: 2px;
 }
 
 /* Hide default attribution for clean UI */
 .react-flow__attribution {
-    display: none;
+  display: none;
 }
 
 @keyframes node-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-node-spin {
+  animation: node-spin 1s linear infinite;
+}
+/* Custom Scrollbar for Nodes */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.6);
 }

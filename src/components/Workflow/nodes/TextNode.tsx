@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { Position } from 'reactflow';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { useWorkflowStore, TextNodeData } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 import { BaseNodeMenu } from '../shared/BaseNodeMenu';
 import { ValidationHandle } from '../shared/ValidationHandle';
@@ -8,7 +8,7 @@ import { ValidationHandle } from '../shared/ValidationHandle';
 /**
  * TextNode - A React Flow node for manual text/prompt entry.
  */
-export default function TextNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
+export default function TextNode({ id, data, selected }: { id: string, data: TextNodeData, selected: boolean }) {
     // Atomic selectors for better performance
     const updateNodeData = useWorkflowStore(state => state.updateNodeData);
     const onNodesChange = useWorkflowStore(state => state.onNodesChange);

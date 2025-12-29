@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Position, useUpdateNodeInternals } from 'reactflow';
 import { Plus, MoveRight, Loader2, ChevronRight, ChevronDown } from 'lucide-react';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { useWorkflowStore, ImageNodeData } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
 import { BaseNodeMenu, useBaseNodeMenu } from '../shared/BaseNodeMenu';
 import { ValidationHandle } from '../shared/ValidationHandle';
@@ -66,7 +66,7 @@ const ImageModelSelectionSubmenu = ({ id, selectedModel, updateNodeData }: { id:
                         )}
                         style={{ width: '100%', height: '24px', fontSize: '12px', fontWeight: 400, color: 'rgb(255,255,255)' }}
                     >
-                        <span>Instruct-Pix2Pix (Inactive)</span>
+                        <span>Instruct-Pix2Pix</span>
                     </button>
                 </div>
             )}
@@ -77,7 +77,7 @@ const ImageModelSelectionSubmenu = ({ id, selectedModel, updateNodeData }: { id:
 /**
  * ImageNode - Generates images based on text prompts and optional input images.
  */
-export default function ImageNode({ id, data, selected }: { id: string, data: any, selected: boolean }) {
+export default function ImageNode({ id, data, selected }: { id: string, data: ImageNodeData, selected: boolean }) {
     // Atomic selectors for better performance
     const updateNodeData = useWorkflowStore(state => state.updateNodeData);
     const runNode = useWorkflowStore(state => state.runNode);
@@ -98,16 +98,30 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
         }
     }, [data.error, data.validationError, id, updateNodeData]);
 
-    React.useEffect(() => {
-        if (data.output) {
+    useEffect(() => {
+        if (data.isLoading) {
             setIsImageLoading(true);
-        } else if (!data.isLoading) {
+            setImageSize(null);
+            return;
+        }
+
+        if (data.output && !imageSize) {
+            setIsImageLoading(true);
+
+            const timer = setTimeout(() => {
+                setIsImageLoading(false);
+            }, 30000);
+            return () => clearTimeout(timer);
+        }
+
+        if (!data.output && !data.isLoading) {
+            setIsImageLoading(false);
             setImageSize(null);
         }
-    }, [data.output, data.isLoading]);
+    }, [data.isLoading, data.output, imageSize]);
 
     const imageInputCount = data.imageInputCount || 1;
-    const selectedModel = data.selectedModel || 'pollinations';
+    const selectedModel = data.selectedModel || 'flux-schnell';
 
     useEffect(() => {
         updateNodeInternals(id);
@@ -180,15 +194,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                 >
                     {(data.isLoading || (data.output && isImageLoading)) && (
                         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[200] bg-[#2e2e32]/80 backdrop-blur-sm">
-                            <style>
-                                {`
-                            @keyframes node-spin {
-                                from { transform: rotate(0deg); }
-                                to { transform: rotate(360deg); }
-                            }
-                        `}
-                            </style>
-                            <div style={{ animation: 'node-spin 1s linear infinite' }} className="w-8 h-8 flex items-center justify-center">
+                            <div className="w-8 h-8 flex items-center justify-center animate-node-spin">
                                 <Loader2 size={32} className="text-[#a1a1aa]" />
                             </div>
                         </div>
@@ -213,7 +219,11 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                                     setImageSize({ width: naturalWidth, height: naturalHeight });
                                     setIsImageLoading(false);
                                 }}
-                                onError={() => setIsImageLoading(false)}
+                                onError={(e) => {
+                                    console.error("Image load failed", e.currentTarget.src);
+                                    setIsImageLoading(false);
+                                    updateNodeData(id, { error: 'Failed to load image from provider.' });
+                                }}
                                 className={cn(
                                     "w-full h-full object-contain transition-opacity duration-300",
                                     isImageLoading ? "opacity-0" : "opacity-100"
@@ -281,7 +291,7 @@ export default function ImageNode({ id, data, selected }: { id: string, data: an
                         "!w-3 !h-3 !border-4 !left-[-6px] z-50 transition-colors group/handle",
                         data.validationError ? "!bg-[rgb(241,160,250)] !border-[rgb(241,160,250)]" : "!bg-[#2b2b2f] !border-[rgb(241,160,250)]"
                     )}
-                    showRequiredError={data.validationError || data.error === 'Required input is missing.'}
+                    showRequiredError={!!data.validationError || data.error === 'Required input is missing.'}
                 />
 
                 {(selected || data.validationError) && (
