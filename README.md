@@ -1,88 +1,87 @@
 # Weavy Workflow Builder
 
-A powerful visual workflow builder for creating AI-powered automation pipelines with Google's Gemini AI. Build complex workflows by connecting nodes for text processing, image generation, and LLM interactions through an intuitive drag-and-drop interface.
+A powerful visual workflow builder for creating AI-powered automation pipelines with Google's Gemini AI and Hugging Face. Build complex workflows by connecting nodes for text processing, image generation, and LLM interactions through an intuitive drag-and-drop interface.
 
-![Workflow Builder](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
 ![React Flow](https://img.shields.io/badge/React_Flow-11-purple?style=for-the-badge)
-![Prisma](https://img.shields.io/badge/Prisma-ORM-teal?style=for-the-badge&logo=prisma)
+![Zustand](https://img.shields.io/badge/Zustand-State-orange?style=for-the-badge)
+![Prisma](https://img.shields.io/badge/Prisma-5-teal?style=for-the-badge&logo=prisma)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38B2AC?style=for-the-badge&logo=tailwind-css)
 
 ## ✨ Features
 
 ### 🎨 Visual Workflow Design
-- **Drag-and-Drop Interface**: Intuitive node-based workflow creation
-- **Real-time Canvas**: Pan, zoom (1%-300%), and navigate your workflows with ease
-- **Smart Connections**: Color-coded edges for different data types (purple for text, teal for images)
-- **Dynamic Node Sizing**: Image nodes automatically resize to fit content
+- **Drag-and-Drop Interface**: Intuitive node-based workflow creation.
+- **Real-time Canvas**: Pan, zoom (1%–300%), and navigate your workflows with ease.
+- **Smart Connections**: Color-coded edges for different data types (purple for text, teal for images).
+- **Dynamic Node Sizing**: Image/Import nodes automatically resize to fit content.
 
 ### 🧩 Node Types
 
-#### 📝 Text Node
-- Input text prompts and instructions
-- Multi-line text editing
-- Connect to multiple downstream nodes
+#### 📝 Prompt Node
+- Input text prompts and instructions.
+- Multi-line text editing.
+- Connect to multiple downstream nodes.
 
 #### 🖼️ Image Node
-- Generate images from text prompts using Pollinations AI
-- Dynamic preview with aspect-ratio-aware resizing
-- Support for multiple image inputs
+- Generate images from text prompts using **Hugging Face (FLUX.1-schnell)**.
+- **Multimodal Flux**: Connect image inputs to use Gemini to describe visual styles and subjects, combining them into a cohesive prompt for high-quality image generation.
+- Dynamic preview with aspect-ratio-aware resizing.
 
-#### 📤 Upload Node
-- Upload local images (max 5MB)
-- Base64 encoding for seamless integration
-- Click to upload
-- Click to upload
+#### 📥 Import Node
+- Upload local images (PNG, JPEG).
+- Base64 encoding for seamless integration with AI models.
+- Click to upload interface.
 
-#### 🤖 LLM Node (Run Any LLM)
-- Powered by Google Gemini AI (2.5 Flash model)
-- Powered by Google Gemini AI (2.5 Flash model)
-- **System Prompt Support**: Define AI behavior with dedicated system prompt input
-- **System Prompt Propagation**: Automatically inherits system prompts from upstream nodes
-- Multiple image inputs for multimodal AI interactions
-- Error handling
+#### 🤖 Run Any LLM Node
+- Powered by **Google Gemini 2.5 Flash**.
+- **System Prompt Propagation**: Automatically inherits or manually defines behaviors via upstream text connections.
+- Supports multimodal interactions (text + multiple images).
+- Real-time output streaming and error handling.
 
 ### 💾 Workflow Management
-- **Persistent Storage**: Save workflows to PostgreSQL database
-- **Import/Export**: JSON-based workflow portability
-- **Auto-save**: Automatic workflow persistence
-- **Version History**: Undo/Redo support (up to 20 steps)
+- **Persistent Storage**: Save and manage multiple workflows using Prisma and PostgreSQL.
+- **Import/Export**: Full JSON-based portability for sharing and backing up workflows.
+- **Version History**: Robust undo/redo support (up to 20 steps).
+- **Auto-save snapshots**: Keeps your progress safe during editing.
 
 ### ⌨️ Keyboard Shortcuts
 - `Cmd/Ctrl + Z`: Undo
 - `Cmd/Ctrl + Shift + Z` or `Cmd/Ctrl + Y`: Redo
 - `Cmd/Ctrl + +`: Zoom In
 - `Cmd/Ctrl + -`: Zoom Out
-- `Cmd/Ctrl + 0`: Reset Zoom
+- `Cmd/Ctrl + 0`: Reset Zoom (100%)
 - `Cmd/Ctrl + 1`: Fit View
 - `Backspace/Delete`: Delete selected nodes
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **[Next.js 15](https://nextjs.org/)**: React framework with App Router
+- **[Next.js 16](https://nextjs.org/)**: React framework with App Router
 - **[React 19](https://react.dev/)**: UI library
-- **[TypeScript](https://www.typescriptlang.org/)**: Type-safe development
-- **[React Flow](https://reactflow.dev/)**: Node-based workflow visualization
-- **[Zustand](https://zustand-demo.pmnd.rs/)**: Lightweight state management
-- **[Tailwind CSS](https://tailwindcss.com/)**: Utility-first styling
-- **[Lucide React](https://lucide.dev/)**: Beautiful icon library
+- **[React Flow](https://reactflow.dev/)**: Node-based workflow engine
+- **[Zustand](https://zustand-demo.pmnd.rs/)**: State management
+- **[Tailwind CSS 4](https://tailwindcss.com/)**: Modern utility-first styling
+- **[Lucide React](https://lucide.dev/)**: Icon set
 
 ### Backend
-- **[Prisma](https://www.prisma.io/)**: Next-generation ORM
+- **[Prisma 5](https://www.prisma.io/)**: Type-safe ORM
 - **[PostgreSQL](https://www.postgresql.org/)**: Relational database
-- **[Zod](https://zod.dev/)**: TypeScript-first schema validation
+- **[Zod](https://zod.dev/)**: Schema validation
 
 ### AI & APIs
-- **[Google Gemini AI](https://ai.google.dev/)**: Advanced LLM capabilities
-- **[Pollinations AI](https://pollinations.ai/)**: Free image generation
+- **[Google Gemini AI](https://ai.google.dev/)**: Multi-modal LLM (2.5 Flash)
+- **[Hugging Face](https://huggingface.co/)**: Image generation (FLUX.1-schnell)
 - **[@google/generative-ai](https://www.npmjs.com/package/@google/generative-ai)**: Official Gemini SDK
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 20+
 - PostgreSQL database
 - Google Gemini API key
+- Hugging Face Token (`HF_TOKEN`)
 
 ### Installation
 
@@ -103,9 +102,12 @@ A powerful visual workflow builder for creating AI-powered automation pipelines 
    ```env
    # Database
    DATABASE_URL="postgresql://user:password@localhost:5432/weavy"
-   
+
    # Google Gemini API
    GEMINI_API_KEY="your-gemini-api-key-here"
+
+   # Hugging Face Token (for Image Generation)
+   HF_TOKEN="your-huggingface-token-here"
    ```
 
 4. **Initialize the database**
@@ -120,44 +122,7 @@ A powerful visual workflow builder for creating AI-powered automation pipelines 
    ```
 
 6. **Open your browser**
-   
    Navigate to [http://localhost:3000](http://localhost:3000)
-
-## 📖 Usage
-
-### Creating Your First Workflow
-
-1. **Add Nodes**: Drag nodes from the sidebar onto the canvas
-2. **Connect Nodes**: Click and drag from output handles to input handles
-3. **Configure**: Click nodes to edit their content and settings
-4. **Run**: Click "Run Model" on any node to execute the workflow
-5. **Save**: Your workflow auto-saves to the database
-
-### Example Workflows
-
-#### Text Generation
-```
-Text Node (prompt) → LLM Node → Output
-```
-
-#### Image Generation
-```
-Text Node (description) → Image Node → Generated Image
-```
-
-#### Multimodal AI
-```
-Upload Node (image) → LLM Node ← Text Node (question)
-                         ↓
-                      Response
-```
-
-#### System Prompt Propagation
-```
-Text Node (system prompt) → LLM Node 1 → LLM Node 2
-                              ↓            ↓
-                         (inherits)   (inherits)
-```
 
 ## 🏗️ Project Structure
 
@@ -166,37 +131,30 @@ weavy-workflow-builder/
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── gemini/run/      # Gemini AI endpoint
-│   │   │   └── workflows/       # Workflow CRUD
-│   │   ├── page.tsx             # Main application
-│   │   └── layout.tsx
+│   │   │   ├── gemini/run/      # Gemini LLM execution
+│   │   │   ├── huggingface/run/ # Flux image generation
+│   │   │   └── workflows/       # CRUD for workflows
+│   │   ├── layout.tsx
+│   │   └── page.tsx             # Main application entry
 │   ├── components/
 │   │   └── Workflow/
-│   │       ├── Canvas.tsx       # Main workflow canvas
-│   │       ├── Sidebar.tsx      # Node palette
-│   │       └── nodes/           # Node components
-│   ├── store/
-│   │   └── workflowStore.ts     # Zustand state management
-│   └── lib/
-│       ├── prisma.ts            # Database client
-│       └── utils.ts
+│   │       ├── Canvas.tsx       # Core React Flow implementation
+│   │       ├── Sidebar.tsx      # Node palette and persistence UI
+│   │       ├── nodes/           # Custom node components
+│   │       └── shared/          # Shared UI components (menus, handles)
+│   ├── lib/
+│   │   ├── prisma.ts            # Client singleton
+│   │   └── utils.ts             # Shared utilities
+│   └── store/
+│       └── workflowStore.ts     # Zustand state and execution logic
 ├── prisma/
 │   └── schema.prisma            # Database schema
 └── public/
 ```
 
-## 🔒 API Validation
-
-All API endpoints use **Zod schemas** for request validation:
-- Type-safe request/response handling
-- Automatic validation error messages
-- Detailed error reporting for debugging
-
 ## 🙏 Acknowledgments
 
-- [React Flow](https://reactflow.dev/) for the amazing workflow visualization library
-- [Google Gemini](https://ai.google.dev/) for powerful AI capabilities
-- [Pollinations AI](https://pollinations.ai/) for free image generation
-- [Vercel](https://vercel.com/) for Next.js and hosting platform
-
----
+- [React Flow](https://reactflow.dev/) for the amazing workflow visualization library.
+- [Google Gemini](https://ai.google.dev/) for state-of-the-art AI capabilities.
+- [Hugging Face](https://huggingface.co/) for making FLUX.1 models accessible.
+- [Vercel](https://vercel.com/) for the Next.js framework.

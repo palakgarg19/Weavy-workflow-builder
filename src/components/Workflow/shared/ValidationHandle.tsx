@@ -34,7 +34,7 @@ export const ValidationHandle: React.FC<ValidationHandleProps> = ({
     const validateConnection = useWorkflowStore(state => state.validateConnection);
 
     const handleMouseEnter = () => {
-        if (connectionStart && connectionStart.nodeId !== nodeId) {
+        if (connectionStart) {
             const result = validateConnection(
                 connectionStart.nodeId,
                 connectionStart.handleId,

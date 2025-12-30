@@ -76,7 +76,7 @@ export default function Sidebar() {
         if (localTitle.trim() !== "") {
             setWorkflowName(localTitle);
         } else {
-            setLocalTitle(workflowName); // Revert if empty
+            setLocalTitle(workflowName);
         }
     };
 
@@ -92,9 +92,9 @@ export default function Sidebar() {
 
     const handleTabClick = (tabId: string) => {
         if (activeTab === tabId) {
-            setActiveTab(null); // Close if clicking same tab
+            setActiveTab(null);
         } else {
-            setActiveTab(tabId); // Open if clicking different tab
+            setActiveTab(tabId);
         }
     };
 

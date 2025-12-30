@@ -409,7 +409,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
           if (!promptToUse) throw new Error("Prompt is required.");
 
-          // Safety truncation (HuggingFace models have limits, but 1500 is usually safe for Flux)
+          // Safety truncation (HuggingFace models have limits, 1500 is usually safe for Flux)
           const finalPrompt = promptToUse.slice(0, 1500);
           console.log("Final Prompt for HuggingFace:", finalPrompt);
 
