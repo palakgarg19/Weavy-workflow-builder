@@ -3,7 +3,7 @@
 import { DragEvent, useState, useEffect, useRef } from 'react';
 import {
     Search, History, Image as LucideImage, Sparkles,
-    Download, Type, ChevronDown, Plus, Save, Upload, Check
+    Download, Type, ChevronDown, Plus, Save, Upload, Check, Trash2
 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ export default function Sidebar() {
     const isSaving = useWorkflowStore(state => state.isSaving);
     const exportWorkflow = useWorkflowStore(state => state.exportWorkflow);
     const importWorkflow = useWorkflowStore(state => state.importWorkflow);
+    const deleteWorkflow = useWorkflowStore(state => state.deleteWorkflow);
     const [activeTab, setActiveTab] = useState<string | null>('search');
     const [localTitle, setLocalTitle] = useState(workflowName);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -51,7 +52,6 @@ export default function Sidebar() {
         fetchWorkflows();
     }, [fetchWorkflows]);
 
-    // Handle clicking outside dropdown
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -62,12 +62,12 @@ export default function Sidebar() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Sync tab title with workflow name (from store)
+    // Sync tab title with workflow name
     useEffect(() => {
         document.title = workflowName;
     }, [workflowName]);
 
-    // Update local state when store changes (e.g. on load)
+    // Update local state when store changes
     useEffect(() => {
         setLocalTitle(workflowName);
     }, [workflowName]);
@@ -260,16 +260,24 @@ export default function Sidebar() {
                                                 <div className="w-[184px] px-[3px] py-1 text-[12px] text-[rgba(255,255,255,0.4)] italic">No workflows found</div>
                                             ) : (
                                                 workflows.map((w) => (
-                                                    <button
+                                                    <div
                                                         key={w.id}
                                                         onClick={() => {
                                                             loadWorkflow(w.id);
                                                             setIsDropdownOpen(false);
                                                         }}
-                                                        className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all group bg-transparent border-none outline-none shadow-none cursor-pointer"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                loadWorkflow(w.id);
+                                                                setIsDropdownOpen(false);
+                                                            }
+                                                        }}
+                                                        tabIndex={0}
+                                                        role="button"
+                                                        className="w-[200px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all group/item bg-transparent border-none outline-none shadow-none cursor-pointer"
                                                     >
                                                         <span
-                                                            className="truncate pointer-events-none"
+                                                            className="truncate pointer-events-none flex-1 text-left"
                                                             style={{
                                                                 fontSize: '12px',
                                                                 fontWeight: 400,
@@ -279,7 +287,18 @@ export default function Sidebar() {
                                                         >
                                                             {w.name}
                                                         </span>
-                                                    </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm(`Are you sure you want to delete "${w.name}"?`)) {
+                                                                    deleteWorkflow(w.id);
+                                                                }
+                                                            }}
+                                                            className="p-1 text-[#ffffff66] hover:text-white transition-all border-none bg-transparent"
+                                                        >
+                                                            <Trash2 size={12} strokeWidth={1.5} />
+                                                        </button>
+                                                    </div>
                                                 ))
                                             )}
                                         </div>
@@ -359,7 +378,7 @@ export default function Sidebar() {
                                                 exportWorkflow();
                                                 setIsDropdownOpen(false);
                                             }}
-                                            className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer mt-1"
+                                            className="w-[184px] h-[24px] flex items-center px-[8px] rounded-[4px] hover:bg-[rgb(53,53,57)] transition-all gap-2 group bg-transparent border-none outline-none shadow-none cursor-pointer mt-1 mb-[8px]"
                                         >
                                             <Upload size={14} style={{ color: 'rgb(255, 255, 255)' }} className="pointer-events-none" strokeWidth={1.5} />
                                             <span

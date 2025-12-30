@@ -134,7 +134,6 @@ export default function UploadNode({ id, data, selected }: { id: string, data: U
                     )}
                 </div>
 
-                {/* Output Handle - Image */}
                 <ValidationHandle
                     type="source"
                     position={Position.Right}

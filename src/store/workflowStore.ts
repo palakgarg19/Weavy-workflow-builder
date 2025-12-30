@@ -22,7 +22,7 @@ export interface BaseNodeData {
   error?: string | null;
   validationError?: string | null;
   output?: string | null;
-  activeSystemPrompt?: string; // Propagated system prompt
+  activeSystemPrompt?: string;
 }
 
 export interface TextNodeData extends BaseNodeData {
@@ -48,16 +48,12 @@ export interface LLMNodeData extends BaseNodeData {
 
 export type WorkflowNodeData = TextNodeData | UploadNodeData | ImageNodeData | LLMNodeData;
 
-// --- Discriminated Union for Nodes ---
-
 export type TextNode = Node<TextNodeData, 'textNode'>;
 export type UploadNode = Node<UploadNodeData, 'uploadNode'>;
 export type ImageNode = Node<ImageNodeData, 'imageNode'>;
 export type LLMNode = Node<LLMNodeData, 'llmNode'>;
 
 export type WorkflowNode = TextNode | UploadNode | ImageNode | LLMNode;
-
-// --- Store Types ---
 
 type HistoryState = {
   nodes: WorkflowNode[];
@@ -86,6 +82,7 @@ type WorkflowState = {
   fetchWorkflows: () => Promise<void>;
   saveWorkflow: () => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
+  deleteWorkflow: (id: string) => Promise<void>;
   createNewWorkflow: () => void;
 
   undo: () => void;
@@ -102,7 +99,6 @@ type WorkflowState = {
   validateConnection: (sourceId: string, sourceHandle: string, targetId: string, targetHandle: string) => { isValid: boolean, message?: string };
 };
 
-// Max history length
 const MAX_HISTORY = 20;
 
 // Debounce timer for drag end snapshots
@@ -144,7 +140,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
     // 1. Prevent self-connections
     if (sourceId === targetId) {
-      return { isValid: false, message: "Circular connections are not allowed" };
+      return { isValid: false, message: "Self connections are not allowed" };
     }
 
     const sourceNode = nodes.find(n => n.id === sourceId);
@@ -356,7 +352,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       const activeSystemPrompt = systemTextInput.trim();
       updateNodeData(nodeId, { activeSystemPrompt });
 
-      // Gather specific node prompt
       let nodeSpecificText = "";
       if (targetNode.type === 'textNode') {
         nodeSpecificText = targetNode.data.text || "";
@@ -372,7 +367,6 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         return;
       }
 
-      // Strategy Pattern for Execution
       if (targetNode.type === 'imageNode') {
         const selectedModel = targetNode.data.selectedModel || 'flux-schnell';
 
@@ -385,8 +379,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             try {
               const isMultiple = imageInputs.length > 1;
               const descriptionPrompt = isMultiple
-                ? "Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one concise, cohesive prompt for an image generator (max 400 characters) that captures the essence of all input images."
-                : "Describe the visual style, subject, colors, and composition of this image in one concise sentence suitable for an image generator (max 400 characters).";
+                ? `The user's specific request is: "${userPrompt}". Describe the visual style, subject, colors, and composition of these images. Combine their key visual elements into one concise, cohesive prompt for an image generator (max 400 characters) that captures the essence of all input images and aligns with the user's request.`
+                : `The user's specific request is: "${userPrompt}". Describe the visual style, subject, colors, and composition of this image in one concise sentence suitable for an image generator (max 400 characters) that aligns with the user's request.`;
 
               const response = await fetch('/api/gemini/run', {
                 method: 'POST',
@@ -409,7 +403,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
           if (!promptToUse) throw new Error("Prompt is required.");
 
-          // Safety truncation (HuggingFace models have limits, 1500 is usually safe for Flux)
+          // Safety truncation (1500 is safe for Flux)
           const finalPrompt = promptToUse.slice(0, 1500);
           console.log("Final Prompt for HuggingFace:", finalPrompt);
 
@@ -425,8 +419,17 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
           if (!response.ok) throw new Error(`HuggingFace error: ${response.status}`);
           const blob = await response.blob();
+
+          // Convert Blob to Base64 for persistence
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
           updateNodeData(nodeId, {
-            output: URL.createObjectURL(blob),
+            output: base64,
             isLoading: false,
             generatedDescription: selectedModel === 'flux-plus-gemini' ? "Flux.1 + Gemini (via Gemini Description)" : "Text-to-Image"
           });
@@ -516,6 +519,18 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       edges: [],
       history: { past: [], future: [] }
     });
+  },
+
+  deleteWorkflow: async (id: string) => {
+    try {
+      const resp = await fetch(`/api/workflows/${id}`, { method: 'DELETE' });
+      if (resp.ok) {
+        if (get().currentWorkflowId === id) {
+          get().createNewWorkflow();
+        }
+        await get().fetchWorkflows();
+      }
+    } catch (e) { alert("Failed to delete workflow"); }
   },
 
   exportWorkflow: () => {

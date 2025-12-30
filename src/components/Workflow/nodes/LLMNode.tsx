@@ -50,13 +50,11 @@ const LLMModelSelectionSubmenu = () => {
  * LLMNode - Processes text and image inputs through Google Gemini models.
  */
 export default function LLMNode({ id, data, selected }: { id: string, data: LLMNodeData, selected: boolean }) {
-    // Atomic selectors for better performance
     const updateNodeData = useWorkflowStore(state => state.updateNodeData);
     const runNode = useWorkflowStore(state => state.runNode);
     const onNodesChange = useWorkflowStore(state => state.onNodesChange);
 
     const updateNodeInternals = useUpdateNodeInternals();
-    const [showModelSubmenu, setShowModelSubmenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -242,7 +240,6 @@ export default function LLMNode({ id, data, selected }: { id: string, data: LLMN
                     </div>
                 )}
 
-                {/* Dynamic Image Input Handles */}
                 {Array.from({ length: imageInputCount }).map((_, index) => {
                     const topPosition = 140 + (index * 40);
                     return (

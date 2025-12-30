@@ -68,3 +68,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     );
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    await prisma.workflow.delete({
+      where: { id },
+    });
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Delete Workflow Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to delete workflow" },
+      { status: 500 }
+    );
+  }
+}

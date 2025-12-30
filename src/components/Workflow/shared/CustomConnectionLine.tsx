@@ -20,7 +20,7 @@ export function CustomConnectionLine({
     });
 
     // Color logic based on source
-    let strokeColor = 'rgb(241,160,250)'; // Default purple for text
+    let strokeColor = 'rgb(241,160,250)';
 
     if (fromNode?.type === 'uploadNode' || fromNode?.type === 'imageNode') {
         strokeColor = 'rgb(110,221,179)';

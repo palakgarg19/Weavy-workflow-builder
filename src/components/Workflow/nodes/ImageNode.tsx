@@ -8,7 +8,6 @@ import { ValidationHandle } from '../shared/ValidationHandle';
 
 /**
  * ImageModelSelectionSubmenu - Handles model selection for ImageNode.
- * Uses BaseNodeMenuContext to close the menu upon selection.
  */
 const ImageModelSelectionSubmenu = ({ id, selectedModel, updateNodeData }: { id: string, selectedModel: string, updateNodeData: any }) => {
     const { closeMenu } = useBaseNodeMenu();
@@ -76,7 +75,6 @@ export default function ImageNode({ id, data, selected }: { id: string, data: Im
     const updateNodeInternals = useUpdateNodeInternals();
     const [isImageLoading, setIsImageLoading] = useState(false);
     const [imageSize, setImageSize] = useState<{ width: number, height: number } | null>(null);
-    const [showModelSubmenu, setShowModelSubmenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
